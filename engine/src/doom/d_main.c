@@ -87,6 +87,7 @@
 //  calls I_GetTime, I_StartFrame, and I_StartTic
 //
 void D_DoomLoop (void);
+void D_DoomFrames (void);
 
 static char *gamedescription;
 
@@ -488,10 +489,7 @@ void D_DoomLoop (void)
         wipegamestate = gamestate;
     }
 
-    while (1)
-    {
-        D_RunFrame();
-    }
+    D_DoomFrames();
 }
 
 

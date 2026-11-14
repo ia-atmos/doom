@@ -1,0 +1,44 @@
+;; Doom, with its control in Atmos.
+;;
+;; The engine (engine/, in C) simulates and draws. It starts by itself
+;; (D_DoomMain), and where it had its loop of frames, it calls this
+;; program (D_DoomFrames), which runs the frames and never returns.
+;;
+;; The environment below emits:
+;;
+;;      :frame      once per frame, forever
+;;
+;; The game ends inside the engine (I_Quit), which exits the process.
+
+```:prelude
+#include "doomtype.h"
+#include "i_system.h"
+#include "m_argv.h"
+
+void D_RunFrame (void);
+
+// Called by the engine, once, in the place of its loop of frames.
+void D_DoomFrames (void) {
+    atm_init(myargc, myargv);
+    AStatus st = atm_main();        // the main chunk, up to its first await
+
+    AVal frame = a_strz("frame");
+    while (st==A_OK && atm_alive()) {
+        st = atm_emit(frame);
+    }
+    a_dec(frame);
+
+    if (st == A_OK) {
+        st = atm_stop();
+    }
+    if (st != A_OK) {
+        a_error_dump();
+    }
+    atm_quit();
+    I_Error("doom.atm: the program ended");
+}
+```
+
+loop on :frame {
+    `D_RunFrame();`
+}

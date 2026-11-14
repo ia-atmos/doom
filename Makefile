@@ -1,11 +1,19 @@
-# Builds the engine (a copy of Chocolate Doom, in engine/):
+# Builds the game: the program in Atmos (doom.atm) over the engine (a
+# copy of Chocolate Doom, in engine/).
 #
 #   out/doom        the game, with a window
-#   out/doom-tst    the same engine over the test platform (tst/): no
-#                   window, no real time, input from a script
+#   out/doom-tst    the game over the test platform (tst/): no window,
+#                   no real time, input from a script
 #
-# `make test` compares the runs of tst/ with their expected outputs.
+#   out/doom-c      the engine all in C (c/main.c in the place of the
+#   out/doom-c-tst  program in Atmos), to compare
+#
+# `make test` compares the runs of tst/ with their expected outputs, and
+# `make test-c` does the same for the engine all in C.
+#
+# ATMOS is a checkout of the compiler (ia-atmos/lang), already built.
 
+ATMOS  ?= ../lang
 CC     ?= cc
 OUT    := out
 SDL_C  := $(shell sdl2-config --cflags)
@@ -17,26 +25,47 @@ CFLAGS := -std=gnu99 -O2 -g -w \
           $(SDL_C)
 
 # doom_icon.c is data, included by i_video.c
-SRCS := $(filter-out engine/src/doom/doom_icon.c, \
-          $(wildcard engine/src/*.c engine/src/doom/*.c \
-                     engine/textscreen/*.c engine/pcsound/*.c engine/opl/*.c))
-OBJS := $(SRCS:%.c=$(OUT)/%.o)
+ENG_SRCS := $(filter-out engine/src/doom/doom_icon.c, \
+              $(wildcard engine/src/*.c engine/src/doom/*.c \
+                         engine/textscreen/*.c engine/pcsound/*.c engine/opl/*.c))
 
 # the test platform takes the place of these files of the engine
 TST_OUT  := engine/src/i_video.c engine/src/i_timer.c engine/src/z_zone.c
-TST_SRCS := $(filter-out $(TST_OUT), $(SRCS)) tst/i_video.c tst/i_timer.c tst/z_zone.c
+TST_SRCS := $(filter-out $(TST_OUT), $(ENG_SRCS)) $(wildcard tst/*.c)
+
+ENG_OBJS := $(ENG_SRCS:%.c=$(OUT)/%.o)
 TST_OBJS := $(TST_SRCS:%.c=$(OUT)/%.o)
+ATM_OBJS := $(OUT)/doom.atm.o
+C_OBJS   := $(OUT)/c/main.o
+ATM_LIB  := $(ATMOS)/build/libatmos.a
 
-all: $(OUT)/doom $(OUT)/doom-tst
+all: $(OUT)/doom $(OUT)/doom-tst $(OUT)/doom-c $(OUT)/doom-c-tst
 
-$(OUT)/doom: $(OBJS)
-	$(CC) -o $@ $(OBJS) $(SDL_L) -lm
+$(OUT)/doom: $(ATM_OBJS) $(ENG_OBJS)
+	$(CC) -o $@ $^ $(ATM_LIB) $(SDL_L) -lm
 
-$(OUT)/doom-tst: $(TST_OBJS)
-	$(CC) -o $@ $(TST_OBJS) $(SDL_L) -lm
+$(OUT)/doom-tst: $(ATM_OBJS) $(TST_OBJS)
+	$(CC) -o $@ $^ $(ATM_LIB) $(SDL_L) -lm
+
+$(OUT)/doom-c: $(C_OBJS) $(ENG_OBJS)
+	$(CC) -o $@ $^ $(SDL_L) -lm
+
+$(OUT)/doom-c-tst: $(C_OBJS) $(TST_OBJS)
+	$(CC) -o $@ $^ $(SDL_L) -lm
+
+# the program in Atmos, through C
+$(OUT)/doom.atm.c: doom.atm $(ATMOS)/atmos
+	@mkdir -p $(dir $@)
+	$(ATMOS)/atmos -c doom.atm > $@
+
+$(OUT)/doom.atm.o: $(OUT)/doom.atm.c
+	$(CC) $(CFLAGS) -I$(ATMOS)/rt -c $< -o $@
 
 test: $(OUT)/doom-tst
 	tst/run.sh
+
+test-c: $(OUT)/doom-c-tst
+	BIN=$(abspath $(OUT)/doom-c-tst) tst/run.sh
 
 $(OUT)/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -45,6 +74,6 @@ $(OUT)/%.o: %.c
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all test clean
+.PHONY: all test test-c clean
 
--include $(OBJS:.o=.d) $(TST_OBJS:.o=.d)
+-include $(ENG_OBJS:.o=.d) $(TST_OBJS:.o=.d) $(C_OBJS:.o=.d)
