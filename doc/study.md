@@ -33,7 +33,7 @@ Lines are counted with no blank lines and no comments.
 | Lines | 1219 | 622, of which 56 are C in the `:prelude` |
 | Variables of the file (`static`) | 57 | 3 (`WI`, `WI_POINTER`, `WI_FRAGS`) |
 
-Of the 57 variables of C, 36 are pointers to graphics, loaded at the
+Of the 57 variables of C, 25 hold graphics, loaded at the
 start of an intermission and freed at its end (150 lines). The Atmos
 version asks the WAD for a graphic by its name each time it draws, so
 it has none of that; it is a choice that C could make as well, and not
