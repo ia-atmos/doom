@@ -13,25 +13,32 @@ reactive concurrency.
   level, intermission, finale).
 
 The plan is in [`.claude/plans/261113-doom.md`](.claude/plans/261113-doom.md).
-So far the repository has the engine and its tests; nothing is ported.
+So far the program in Atmos ([`doom.atm`](doom.atm)) runs the frames, and
+nothing else is ported. The changes to the engine are in
+[`doc/seam.md`](doc/seam.md).
 
 ## Build and test
 
-It needs a C compiler, `make`, and SDL2 (`libsdl2-dev`).
+It needs a C compiler, `make`, SDL2 (`libsdl2-dev`), and a checkout of
+the compiler of Atmos ([ia-atmos/lang](https://github.com/ia-atmos/lang)),
+already built with `make`. `ATMOS` is its path (default `../lang`).
 
 ```
-./wad.sh        # fetches the shareware DOOM1.WAD into wad/
-make            # builds out/doom and out/doom-tst
-make test       # runs the tests of tst/
+./wad.sh                    # fetches the shareware DOOM1.WAD into wad/
+make ATMOS=<path>           # builds the four programs below
+make ATMOS=<path> test      # runs the tests of tst/
 out/doom -iwad wad/DOOM1.WAD
 ```
 
 - `out/doom` is the game, with a window. It has no sound and no network:
   SDL2_mixer and SDL2_net are left out.
-- `out/doom-tst` is the same engine over a test platform: no window, one
-  tic per frame with no real time, and input from a script. Three files
-  of `tst/` take the place of three files of the engine (`i_video.c`,
+- `out/doom-tst` is the game over a test platform: no window, one tic
+  per frame with no real time, and input from a script. Three files of
+  `tst/` take the place of three files of the engine (`i_video.c`,
   `i_timer.c`, `z_zone.c`).
+- `out/doom-c` and `out/doom-c-tst` are the engine all in C, to compare:
+  `c/main.c` takes the place of the program in Atmos. `make test-c` runs
+  the tests on it.
 
 ## The tests
 
@@ -55,7 +62,9 @@ recorded runs, kept for the eye.
 
 | Folder | What |
 |--------|------|
+| `doom.atm` | The program in Atmos |
 | `engine/` | A copy of Chocolate Doom. Its first commit has nothing changed, so `git diff 8f5ee02 -- engine/` is every change made to the engine |
+| `c/` | The loop of frames in C, for the engine with no Atmos |
 | `cfg/` | `config.h`, which Chocolate Doom generates with CMake |
 | `tst/` | The test platform, the tests, and their expected outputs |
 | `doc/` | Documents of the study |

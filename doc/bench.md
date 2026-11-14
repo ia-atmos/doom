@@ -9,7 +9,7 @@ best of 7 runs, with the time to start (7 ms) taken out.
 
 ## The engine all in C
 
-The baseline, at the commit that adds this file. Nothing is ported.
+The baseline (`out/doom-c-tst`), measured before the seam.
 
 | Demo | Tics | No rendering | Rendering |
 |------|------|--------------|-----------|
@@ -24,3 +24,21 @@ The baseline, at the commit that adds this file. Nothing is ported.
   in one process.
 - "Rendering" draws the 320x200 buffer of each tic and shows it
   nowhere.
+
+## The seam, with nothing ported
+
+The program in Atmos runs the frames (`:frame`, then `D_RunFrame`). In
+the same session, 9 runs each:
+
+| Demo | The engine all in C | The program in Atmos |
+|------|---------------------|----------------------|
+| demo1, no rendering | 22 ms | 25 ms |
+| demo2, no rendering | 21 ms | 20 ms |
+| demo3, no rendering | 13 ms | 14 ms |
+| demo1, rendering | 295 ms | 303 ms |
+| demo2, rendering | 222 ms | 237 ms |
+| demo3, rendering | 132 ms | 134 ms |
+
+No difference above the error of the measure. These runs have one tic
+per frame, so the program takes one emit per tic: 5026 emits in demo1,
+which do not show in 22 ms.
