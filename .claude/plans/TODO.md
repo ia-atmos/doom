@@ -23,9 +23,8 @@ Each has the option recommended by this session.
 
 | # | Work | Note |
 |---|------|------|
-| 8 | D3: the intermission | Next |
 | 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
-| 9 | D4: the finale | See A18 |
+| 9 | D4: the finale | Next. See A18 |
 | 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | |
 | 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
@@ -33,12 +32,17 @@ Each has the option recommended by this session.
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
 | 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
+| 36 | A possibility for after the faithful port, to take no action on until the author says: if the game is saved only at checkpoints, the state in the middle of a level never has to be data, so the table of states could go, and monsters, doors, and weapons could be tasks. It costs the saved games of the original and a save at any point; each task must be checked against the demos again | From the session `snapshots` (`session_011eECoiWKpJwsuKH43TLunQ`), 2026-11-14, with the words of the author as it quoted them: "se colocarmos essa restrição após o porte fiel, podemos eliminar a tabela de estados e usar Atmos mais vezes". Not checked in its transcript. Related: items 64 and 45 of the TODO of `ia-atmos/lang` |
+| 37 | Not verified in the intermission: the map of the episodes 2 and 3 (animations `:level`), Doom 2, frags above zero, more than one player, a second intermission in one game | Needs the registered or the Doom 2 WAD, which the session does not have; the second intermission needs a route through E1M2 |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
 
 | # | What | Note |
 |---|------|------|
+| 38 | D3 is done (2026-11-14): the intermission is in `wi.atm` (one player, deathmatch, cooperative, and the map); ten tests are identical; `doc/study.md` has the first comparison | Reported to the author in this session |
+| 39 | In `wi.atm`, the graphics are asked to the WAD by name at each draw, and not loaded once as in C: 150 lines less, and nothing changes on screen | Decided by this session |
+| 40 | `ANIM_RANDOM` of `wi_stuff.c` was not ported: no animation of the game is of that kind | Decided by this session |
 | 32 | D2 is done (2026-11-14): the frame and the screen wipe are in `doom.atm`, each column of the melt as a task; the seven tests are identical | Reported to the author in this session |
 | 33 | In the wipe, not verified: more than one tic of the clock per frame (the test platform always gives one). To see it, the game must be played with a window | To check by the author, or with a test clock that skips tics |
 | 34 | The wipe `ColorXForm` of `f_wipe.c` was not ported: the game never uses it | Decided by this session |
@@ -80,3 +84,4 @@ On 2026-11-14:
 - 6: D1 is done.
 - 7: D2 is done.
 - 31: the compiler session answered the two doubts on the manual (see B35).
+- 8: D3 is done.
