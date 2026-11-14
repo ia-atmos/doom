@@ -251,6 +251,37 @@ func wi_init () {
     ]
     ;; the map of an episode, with its places and animations
     set WI.map = (!WI.commercial) && (WI.epsd <= 2)
+
+    ;; the players in the game, for the statistics of a net game:
+    ;; `frags@j` are the kills of the player `j`, and `total` is their
+    ;; sum, less the times that the player killed itself
+    set WI.me = `:number WI_WBS->pnum`
+    set WI.players = []
+    loop i in 4 {
+        if `:boolean playeringame[(int)a_dbl($i)]` {
+            val frags = []
+            var total = 0
+            loop j in 4 {
+                val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
+                set frags@(j) = n
+                if j == i {
+                    set total -= n
+                } else {
+                    if `:boolean playeringame[(int)a_dbl($j)]` {
+                        set total += n
+                    }
+                }
+            }
+            set WI.players@(#WI.players) = [
+                i      = i,
+                kills  = `:number (WI_WBS->plyr[(int)a_dbl($i)].skills  * 100) / WI_WBS->maxkills`,
+                items  = `:number (WI_WBS->plyr[(int)a_dbl($i)].sitems  * 100) / WI_WBS->maxitems`,
+                secret = `:number (WI_WBS->plyr[(int)a_dbl($i)].ssecret * 100) / WI_WBS->maxsecret`,
+                frags  = frags,
+                total  = total,
+            ]
+        }
+    }
 }
 
 ;; The name of a level, as a graphic.
@@ -321,6 +352,21 @@ func wi_anims (as, stats) {
 
 ;; THE STATISTICS
 
+;; Draws "<level> finished".
+func wi_draw_finished () {
+    if (!WI.commercial) || (WI.last < 32) {
+        val name = wi_level(WI.last)
+        wi_draw_center(2, name)
+        wi_draw_center(2 + ((5 * wi_height(name)) // 4), "WIF")
+    } else {
+        if WI.last == 32 {
+            wi_draw_center(2, "WIF")
+        } else {
+            `I_Error("Bad V_DrawPatch");`
+        }
+    }
+}
+
 ;; A counter in percent runs up to `max`, 2 at each tic, with shots.
 task WI_Count (cnt, key, max) {
     loop on :wi.tic {
@@ -344,18 +390,7 @@ task WI_Stats () {
     spawn {
         val lh = (3 * wi_height("WINUM0")) // 2    ;; the height of a line
         loop on :wi.draw {
-            ;; "<level> finished"
-            if (!WI.commercial) || (WI.last < 32) {
-                val name = wi_level(WI.last)
-                wi_draw_center(2, name)
-                wi_draw_center(2 + ((5 * wi_height(name)) // 4), "WIF")
-            } else {
-                if WI.last == 32 {
-                    wi_draw_center(2, "WIF")
-                } else {
-                    `I_Error("Bad V_DrawPatch");`
-                }
-            }
+            wi_draw_finished()
 
             wi_draw(50, 50, "WIOSTK")
             wi_draw_percent(320-50, 50, cnt.kills)
@@ -407,6 +442,202 @@ task WI_Stats () {
 
     await :wi.accel
     wi_sound(`:number sfx_sgcock`)
+}
+
+;; THE STATISTICS OF A NET GAME
+;;
+;; In a cooperative game, the counters of all players run together: the
+;; kills, the items, the secrets, and then the frags, if any player has
+;; killed another.
+
+;; If some intermission had frags to show. It is kept from one
+;; intermission to the next, as in the original.
+var WI_FRAGS = false
+
+;; The counter `key` of all players runs up to the field `max` of each,
+;; `step` at each tic, with shots.
+task WI_Count_All (cnts, key, max, step, sound) {
+    loop on :wi.tic {
+        wi_sound_count()
+        var ticking = false
+        loop _, p in WI.players {
+            val cnt = cnts@(p.i)
+            set cnt@(key) = cnt@(key) + step
+            if cnt@(key) >= p@(max) {
+                set cnt@(key) = p@(max)
+            } else {
+                set ticking = true
+            }
+        }
+        until !ticking
+    }
+    wi_sound(sound)
+}
+
+task WI_Stats_Net () {
+    val cnts = []
+    loop _, p in WI.players {
+        set cnts@(p.i) = [kills=0, items=0, secret=0, frags=0]
+        if p.total != 0 {
+            set WI_FRAGS = true
+        }
+    }
+    val frags = WI_FRAGS
+
+    pin as = tasks()
+    wi_anims(as, true)
+
+    spawn {
+        ;; the items are "objects" in the WADs that have the graphic
+        val items = if `:boolean W_CheckNumForName(DEH_String("WIOBJ")) >= 0` => "WIOBJ" => "WIOSTI"
+        val x0 = 32 + (wi_width("STFST01") // 2) + (if frags => 0 => 32)
+        val pw = wi_width("WIPCNT")
+        loop on :wi.draw {
+            wi_draw_finished()
+
+            wi_draw(x0 +     64 - wi_width("WIOSTK"), 50, "WIOSTK")
+            wi_draw(x0 + (2*64) - wi_width(items),    50, items)
+            wi_draw(x0 + (3*64) - wi_width("WIOSTS"), 50, "WIOSTS")
+            if frags {
+                wi_draw(x0 + (4*64) - wi_width("WIFRGS"), 50, "WIFRGS")
+            }
+
+            var y = 50 + wi_height("WIOSTK")
+            loop _, p in WI.players {
+                val cnt  = cnts@(p.i)
+                val face = "STPB" ++ p.i
+                wi_draw(x0 - wi_width(face), y, face)
+                if p.i == WI.me {
+                    wi_draw(x0 - wi_width(face), y, "STFST01")
+                }
+                wi_draw_percent(x0 +     64 - pw, y+10, cnt.kills)
+                wi_draw_percent(x0 + (2*64) - pw, y+10, cnt.items)
+                wi_draw_percent(x0 + (3*64) - pw, y+10, cnt.secret)
+                if frags {
+                    wi_draw_num(x0 + (4*64), y+10, cnt.frags, -1)
+                }
+                set y += 33
+            }
+        }
+    }
+
+    var skipped = true
+    watching :wi.accel {
+        val bang = `:number sfx_barexp`
+        await(35, :wi.tic)
+        await WI_Count_All(cnts, "kills", "kills", 2, bang)
+        await(35, :wi.tic)
+        await WI_Count_All(cnts, "items", "items", 2, bang)
+        await(35, :wi.tic)
+        await WI_Count_All(cnts, "secret", "secret", 2, bang)
+        await(35, :wi.tic)
+        if frags {
+            await WI_Count_All(cnts, "frags", "total", 1, `:number sfx_pldeth`)
+            await(35, :wi.tic)
+        }
+        set skipped = false
+    }
+
+    if skipped {
+        loop _, p in WI.players {
+            val cnt = cnts@(p.i)
+            set cnt.kills  = p.kills
+            set cnt.items  = p.items
+            set cnt.secret = p.secret
+            if frags {
+                set cnt.frags = p.total
+            }
+        }
+        wi_sound(`:number sfx_barexp`)
+    }
+
+    await :wi.accel
+    wi_sound(`:number sfx_sgcock`)
+}
+
+;; In a deathmatch, a matrix with the kills of each player over each
+;; other, and the totals. All the numbers run together, 1 at each tic,
+;; and stop at 99.
+task WI_Stats_Deathmatch () {
+    val cnts   = []         ;; cnts@i@j: the kills of `i` over `j`
+    val totals = []
+    loop _, p in WI.players {
+        set cnts@(p.i)   = [0, 0, 0, 0]
+        set totals@(p.i) = 0
+    }
+
+    pin as = tasks()
+    wi_anims(as, true)
+
+    spawn {
+        val w = wi_width("WINUM0")
+        loop on :wi.draw {
+            wi_draw_finished()
+
+            wi_draw(269 - (wi_width("WIMSTT") // 2), 68-33+10, "WIMSTT")
+            wi_draw(10, 100, "WIKILRS")
+            wi_draw( 5,  50, "WIVCTMS")
+
+            ;; the faces: the killers in a column, the victims in a row
+            loop _, p in WI.players {
+                val face = "STPB" ++ p.i
+                val x = (42 + 40 + (40 * p.i)) - (wi_width(face) // 2)
+                val y = 68 + (33 * p.i)
+                wi_draw(x, 68-33, face)
+                wi_draw(42 - (wi_width(face) // 2), y, face)
+                if p.i == WI.me {
+                    wi_draw(x, 68-33, "STFDEAD0")
+                    wi_draw(42 - (wi_width(face) // 2), y, "STFST01")
+                }
+            }
+
+            loop _, p in WI.players {
+                val y = 68 + 10 + (33 * p.i)
+                loop _, q in WI.players {
+                    wi_draw_num(42 + 40 + (40 * q.i) + w, y, cnts@(p.i)@(q.i), 2)
+                }
+                wi_draw_num(269 + w, y, totals@(p.i), 2)
+            }
+        }
+    }
+
+    var skipped = true
+    watching :wi.accel {
+        await(35, :wi.tic)
+        loop on :wi.tic {
+            wi_sound_count()
+            var ticking = false
+            loop _, p in WI.players {
+                val cnt = cnts@(p.i)
+                loop _, q in WI.players {
+                    val max = p.frags@(q.i)
+                    if cnt@(q.i) != max {
+                        val v = cnt@(q.i) + (if max < 0 => -1 => 1)
+                        set cnt@(q.i) = math.max(-99, math.min(99, v))
+                        set ticking = true
+                    }
+                }
+                set totals@(p.i) = math.max(-99, math.min(99, p.total))
+            }
+            until !ticking
+        }
+        wi_sound(`:number sfx_barexp`)
+        await(35, :wi.tic)
+        set skipped = false
+    }
+
+    if skipped {
+        loop _, p in WI.players {
+            loop _, q in WI.players {
+                set cnts@(p.i)@(q.i) = p.frags@(q.i)
+            }
+            set totals@(p.i) = p.total
+        }
+        wi_sound(`:number sfx_barexp`)
+    }
+
+    await :wi.accel
+    wi_sound(`:number sfx_slop`)
 }
 
 ;; THE MAP
@@ -494,10 +725,6 @@ task WI_Map () {
 task WI_Intermission () {
     wi_init()
 
-    if `:boolean deathmatch || netgame` {
-        `I_Error("wi.atm: the statistics of a net game are not ported yet");`
-    }
-
     spawn {
         loop on :wi.tic {
             set WI.tics += 1
@@ -533,7 +760,15 @@ task WI_Intermission () {
         }
     }
 
-    await WI_Stats()
+    if `:boolean deathmatch` {
+        await WI_Stats_Deathmatch()
+    } else {
+        if `:boolean netgame` {
+            await WI_Stats_Net()
+        } else {
+            await WI_Stats()
+        }
+    }
     await WI_Map()
 }
 
