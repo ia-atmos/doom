@@ -7,36 +7,44 @@ is left open.
 
 The numbers do not change. Numbers that are missing were settled.
 
-Last update: 2026-11-13.
+Last update: 2026-11-14.
 
 ## A. Decisions waiting for an answer
 
+Each has the option recommended by this session.
+
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
-| 16 | A permission to build and run the engine in this session. The first build of Chocolate Doom (cmake and make, on a clone outside the repository) was denied by the permission classifier, as code from an external source | Allow it: D0 is to build and run this code | Asked on 2026-11-13. It blocks all of D0 |
+| 17 | The license of the repository. `LICENSE` is MIT, from the creation of the repository; `engine/` is GPL-2, and a program built with it is under the GPL-2. MIT is compatible, so nothing is wrong today | Keep MIT for the files outside `engine/`, as the readme says; or change `LICENSE` to GPL-2, to have one license | Not asked yet |
+| 18 | The finale has no test: it needs the end of E1M8 (two barons). A scripted run with `iddqd` and an autopilot, as the one of `tst/level`, should reach it | Write it at D4, when the finale is ported | Not asked yet |
+| 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | To decide when D2 to D5 are done | Not decided now, by the author |
 
 ## B. Work known and not done
 
-The milestones of the plan. Nothing is built yet.
-
 | # | Work | Note |
 |---|------|------|
-| 5 | D0: readme with credits and licenses; the engine builds from the copy; the game data fetched; the test mode; the expected outputs (three demos, scripted runs); tics per second with no rendering | Waits for A16. Chocolate Doom is cloned at `a2dfd51`, and SDL2 is installed (2.30.0, no mixer, no net) |
-| 6 | D1: the seam, with nothing ported; `doc/seam.md` | After D0. Read `doc/manual.md` of `ia-atmos/lang` first |
+| 6 | D1: the seam, with nothing ported; `doc/seam.md` | Next. Read `doc/manual.md` of `ia-atmos/lang` first |
 | 7 | D2: the screen wipe | |
 | 8 | D3: the intermission | |
-| 9 | D4: the finale | |
+| 9 | D4: the finale | See A18 |
 | 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | |
-| 11 | D6: the status bar, the messages, the menus, the automap | To ask the author when D2 to D5 are done (item 4) |
+| 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
+| 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
+| 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
 
 | # | What | Note |
 |---|------|------|
-| 15 | The plan was replaced twice in the repository, as sent by the compiler session: the simulation stays in C (`5b11fca`), and the compiler is now `ia-atmos/lang` (`bd54787`) | Reported to the author in this session; no reply |
+| 21 | D0 is done (2026-11-14): the engine builds from the copy, the WAD is fetched from the package of Ubuntu, the test platform, seven expected outputs, the baseline of speed | Reported to the author in this session |
+| 22 | The test mode edits nothing in the engine: `tst/` has its own `i_video.c`, `i_timer.c`, and `z_zone.c`. The plan had it as part of the seam | Decided by this session |
+| 23 | The memory of the test platform is not the zone of the engine: reads beyond a block give zeros. Otherwise two pixels of demo1 changed at each run (the engine reads beyond the end of sprite columns, as the original) | Decided by this session. The game (`out/doom`) keeps the zone |
+| 24 | `out/doom` has no sound and no network (no SDL2_mixer, no SDL2_net) | Decided by this session, to keep the dependencies to SDL2 alone |
+| 25 | `tst/level` types `iddqd`: on the way to the exit of E1M1, the monsters killed the player of the autopilot | Decided by this session |
+| 26 | Two commits (`1acdd84`, `fec093a`) have their trailers in the subject paragraph, by a mistake of this session in the command | Left as they are: fixing them would rewrite `main` |
 
 ## D. Older items
 
@@ -56,3 +64,10 @@ Answered by the author through the compiler session on 2026-11-13
   tried; no Freedoom in its place.
 - 4: how far to go after the flow is not decided now; ask again when
   the wipe, the intermission, the finale, and the flow are done.
+
+On 2026-11-14:
+
+- 5: D0 is done.
+- 15: the two replacements of the plan (superseded by the work on it).
+- 16: the author allowed the build and the run of the engine in this
+  session ("go ahead").
