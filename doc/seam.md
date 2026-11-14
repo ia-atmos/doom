@@ -12,14 +12,15 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-One file is changed, and one file left the build.
+One file is changed, and two files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
 | `src/doom/d_main.c`, `D_DoomLoop` | The loop `while (1) { D_RunFrame(); }` becomes one call, `D_DoomFrames();` | The loop of frames is control: it goes to the program |
 | `src/doom/d_main.c`, the prototypes | `void D_DoomFrames (void);` | The declaration of the call above |
 | `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe`. The function is in `c/main.c` as it was |
-| `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `doom.atm`. The file is still in the build of the engine all in C |
+| `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
+| `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 
 ## Who runs
 
@@ -64,6 +65,11 @@ From the program to the engine, as native calls:
 | `M_Random()` | The delays of the columns of the wipe |
 | `I_ReadScreen(...)`, `V_DrawBlock(...)`, `I_VideoBuffer`, `Z_Malloc`, `Z_Free` | The pixels of the wipe, in C functions of the `:prelude` |
 | `screenvisible`, `nodrawers`, `players[consoleplayer].mo` | Variables of the engine that the frame reads |
+| `V_DrawPatch(...)`, `W_CacheLumpName(...)`, `W_CheckNumForName(...)` | The graphics of the intermission, by their names |
+| `S_StartSound(...)`, `S_ChangeMusic(...)` | The sounds of the intermission |
+| `G_WorldDone()` | The intermission is over: the next level may start |
+| `M_Random()` | The first frame of each animation of the map |
+| `WI_WBS->...`, `players[]`, `playeringame[]`, `gamemode`, `gameversion`, `deathmatch`, `netgame` | What the intermission reads: the statistics of the level, the buttons of the players, the kind of game |
 
 From the engine to the program:
 
@@ -71,10 +77,19 @@ From the engine to the program:
 |------|------|
 | `D_DoomFrames()` | Once: the engine gives the control to the program |
 | `wipe_StartScreen(...)` | `D_Display` is about to draw a screen that changes the state of the game. A C function of the `:prelude`, which keeps the old screen; it emits nothing |
+| `WI_Start(wbs)` | A level ended (`G_DoCompleted`). Emits `:wi.start` |
+| `WI_Ticker()` | A tic of the game in the intermission (`G_Ticker`). Emits `:wi.tic` |
+| `WI_Drawer()` | The intermission must be drawn (`D_Display`). Emits `:wi.draw` |
+| `WI_End()` | The game left the intermission (`G_Ticker`). Emits `:wi.end` |
+
+These calls come while the program is inside a call to the engine
+(`TryRunTics`, `D_Display`). The status of their emits is kept in a
+variable of the `:prelude`, which the literal that made the call takes:
+`` `TryRunTics(); st = a_chk_aborted(DOOM_ST);` ``.
 
 ## An emit from inside a call
 
-The next steps need the engine to emit to the program while the program
+The intermission needs the engine to emit to the program while the program
 is inside a call to the engine: the program calls the engine to run the
 tics of a frame, and the engine emits `:tic` at each one.
 

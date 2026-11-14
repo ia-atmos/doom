@@ -14,7 +14,8 @@ reactive concurrency.
 
 The plan is in [`.claude/plans/261113-doom.md`](.claude/plans/261113-doom.md).
 So far the program in Atmos ([`doom.atm`](doom.atm)) has the loop of
-frames and the screen wipe. The changes to the engine are in
+frames, the screen wipe, and the intermission. The comparison with C is
+in [`doc/study.md`](doc/study.md). The changes to the engine are in
 [`doc/seam.md`](doc/seam.md).
 
 ## Build and test
@@ -55,6 +56,9 @@ recorded runs, kept for the eye.
 | `newgame` | From the title to a new game, through the menus |
 | `level` | The end of E1M1, its intermission, and the start of E1M2 |
 | `save` | A save, some play, a load, and the same play again |
+| `skip` | The intermission of E1M1 skipped by a key |
+| `dm` | A deathmatch of one player, ended by the timer: its intermission |
+| `net` | A cooperative net game of one player: the end of E1M1 and its intermission |
 
 `tst/bench.sh` measures tics per second; see [`doc/bench.md`](doc/bench.md).
 
@@ -62,7 +66,7 @@ recorded runs, kept for the eye.
 
 | Folder | What |
 |--------|------|
-| `doom.atm` | The program in Atmos |
+| `doom.atm`, `wipe.atm`, `wi.atm` | The program in Atmos: the frames, the screen wipe, the intermission |
 | `engine/` | A copy of Chocolate Doom. Its first commit has nothing changed, so `git diff 8f5ee02 -- engine/` is every change made to the engine |
 | `c/` | The loop of frames in C, for the engine with no Atmos |
 | `cfg/` | `config.h`, which Chocolate Doom generates with CMake |
