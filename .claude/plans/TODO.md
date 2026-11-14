@@ -23,8 +23,7 @@ Each has the option recommended by this session.
 
 | # | Work | Note |
 |---|------|------|
-| 6 | D1: the seam, with nothing ported; `doc/seam.md` | Next. Read `doc/manual.md` of `ia-atmos/lang` first |
-| 7 | D2: the screen wipe | |
+| 7 | D2: the screen wipe | Next |
 | 8 | D3: the intermission | |
 | 9 | D4: the finale | See A18 |
 | 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | |
@@ -32,6 +31,7 @@ Each has the option recommended by this session.
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
+| 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
@@ -39,6 +39,10 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 28 | D1 is done (2026-11-14): the program in Atmos runs the frames, with two lines changed in the engine (`doc/seam.md`); the seven tests are identical with and without Atmos | Reported to the author in this session |
+| 29 | The `main` stays in the engine, against the plan: `D_DoomMain` cannot return (a local variable of it holds the name of the demo), so the engine calls the program where it had its loop | Decided by this session, after the three demos failed the other way |
+| 30 | `c/` keeps in C what leaves the engine, so that the engine with no Atmos still builds (`out/doom-c`, `make test-c`): the baseline of the benchmark, and the C side of the study | Decided by this session |
+| 31 | Sent to the compiler session on 2026-11-14: an emit from C inside a call made by the program works; and two doubts on the manual (the status of a nested `atm_emit`, where `atmos -c` writes) | No reply needed, none yet |
 | 21 | D0 is done (2026-11-14): the engine builds from the copy, the WAD is fetched from the package of Ubuntu, the test platform, seven expected outputs, the baseline of speed | Reported to the author in this session |
 | 22 | The test mode edits nothing in the engine: `tst/` has its own `i_video.c`, `i_timer.c`, and `z_zone.c`. The plan had it as part of the seam | Decided by this session |
 | 23 | The memory of the test platform is not the zone of the engine: reads beyond a block give zeros. Otherwise two pixels of demo1 changed at each run (the engine reads beyond the end of sprite columns, as the original) | Decided by this session. The game (`out/doom`) keeps the zone |
@@ -71,3 +75,4 @@ On 2026-11-14:
 - 15: the two replacements of the plan (superseded by the work on it).
 - 16: the author allowed the build and the run of the engine in this
   session ("go ahead").
+- 6: D1 is done.
