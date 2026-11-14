@@ -24,6 +24,7 @@ Each has the option recommended by this session.
 | # | Work | Note |
 |---|------|------|
 | 8 | D3: the intermission | Next |
+| 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
 | 9 | D4: the finale | See A18 |
 | 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | |
 | 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
@@ -44,7 +45,6 @@ Each has the option recommended by this session.
 | 28 | D1 is done (2026-11-14): the program in Atmos runs the frames, with two lines changed in the engine (`doc/seam.md`); the seven tests are identical with and without Atmos | Reported to the author in this session |
 | 29 | The `main` stays in the engine, against the plan: `D_DoomMain` cannot return (a local variable of it holds the name of the demo), so the engine calls the program where it had its loop | Decided by this session, after the three demos failed the other way |
 | 30 | `c/` keeps in C what leaves the engine, so that the engine with no Atmos still builds (`out/doom-c`, `make test-c`): the baseline of the benchmark, and the C side of the study | Decided by this session |
-| 31 | Sent to the compiler session on 2026-11-14: an emit from C inside a call made by the program works; and two doubts on the manual (the status of a nested `atm_emit`, where `atmos -c` writes) | No reply needed, none yet |
 | 21 | D0 is done (2026-11-14): the engine builds from the copy, the WAD is fetched from the package of Ubuntu, the test platform, seven expected outputs, the baseline of speed | Reported to the author in this session |
 | 22 | The test mode edits nothing in the engine: `tst/` has its own `i_video.c`, `i_timer.c`, and `z_zone.c`. The plan had it as part of the seam | Decided by this session |
 | 23 | The memory of the test platform is not the zone of the engine: reads beyond a block give zeros. Otherwise two pixels of demo1 changed at each run (the engine reads beyond the end of sprite columns, as the original) | Decided by this session. The game (`out/doom`) keeps the zone |
@@ -79,3 +79,4 @@ On 2026-11-14:
   session ("go ahead").
 - 6: D1 is done.
 - 7: D2 is done.
+- 31: the compiler session answered the two doubts on the manual (see B35).
