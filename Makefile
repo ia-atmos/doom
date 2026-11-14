@@ -21,7 +21,7 @@ SDL_L  := $(shell sdl2-config --libs)
 
 CFLAGS := -std=gnu99 -O2 -g -w \
           -DDISABLE_SDL2MIXER=1 -DDISABLE_SDL2NET=1 \
-          -Icfg -Iengine/src -Iengine/textscreen -Iengine/pcsound -Iengine/opl \
+          -Icfg -Iengine/src -Iengine/src/doom -Iengine/textscreen -Iengine/pcsound -Iengine/opl \
           $(SDL_C)
 
 # doom_icon.c is data, included by i_video.c
@@ -35,16 +35,19 @@ TST_SRCS := $(filter-out $(TST_OUT), $(ENG_SRCS)) $(wildcard tst/*.c)
 
 ENG_OBJS := $(ENG_SRCS:%.c=$(OUT)/%.o)
 TST_OBJS := $(TST_SRCS:%.c=$(OUT)/%.o)
+
+# these files of the engine are in the program in Atmos
+ATM_OUT  := $(OUT)/engine/src/doom/f_wipe.o
 ATM_OBJS := $(OUT)/doom.atm.o
 C_OBJS   := $(OUT)/c/main.o
 ATM_LIB  := $(ATMOS)/build/libatmos.a
 
 all: $(OUT)/doom $(OUT)/doom-tst $(OUT)/doom-c $(OUT)/doom-c-tst
 
-$(OUT)/doom: $(ATM_OBJS) $(ENG_OBJS)
+$(OUT)/doom: $(ATM_OBJS) $(filter-out $(ATM_OUT), $(ENG_OBJS))
 	$(CC) -o $@ $^ $(ATM_LIB) $(SDL_L) -lm
 
-$(OUT)/doom-tst: $(ATM_OBJS) $(TST_OBJS)
+$(OUT)/doom-tst: $(ATM_OBJS) $(filter-out $(ATM_OUT), $(TST_OBJS))
 	$(CC) -o $@ $^ $(ATM_LIB) $(SDL_L) -lm
 
 $(OUT)/doom-c: $(C_OBJS) $(ENG_OBJS)

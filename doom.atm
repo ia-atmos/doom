@@ -11,11 +11,24 @@
 ;; The game ends inside the engine (I_Quit), which exits the process.
 
 ```:prelude
-#include "doomtype.h"
-#include "i_system.h"
-#include "m_argv.h"
+#include <string.h>
 
-void D_RunFrame (void);
+#include "doomdef.h"
+#include "doomstat.h"
+
+#include "d_loop.h"
+#include "i_system.h"
+#include "i_timer.h"
+#include "i_video.h"
+#include "m_argv.h"
+#include "m_random.h"
+#include "s_sound.h"
+#include "v_video.h"
+#include "z_zone.h"
+
+#include "m_menu.h"
+
+boolean D_Display (void);
 
 // Called by the engine, once, in the place of its loop of frames.
 void D_DoomFrames (void) {
@@ -37,8 +50,134 @@ void D_DoomFrames (void) {
     atm_quit();
     I_Error("doom.atm: the program ended");
 }
+
+// THE SCREEN WIPE: the pixels (engine/src/doom/f_wipe.c leaves the build)
+
+static pixel_t* WIPE_OLD;       // the screen before the change
+static pixel_t* WIPE_NEW;       // the screen after it
+
+// Called by the engine (D_Display), before it draws a screen that
+// changes the state of the game: keeps the old screen.
+int wipe_StartScreen (int x, int y, int width, int height) {
+    WIPE_OLD = Z_Malloc(SCREENWIDTH*SCREENHEIGHT*sizeof(pixel_t), PU_STATIC, NULL);
+    I_ReadScreen(WIPE_OLD);
+    return 0;
+}
+
+// Keeps the new screen, and shows the old one again.
+static void wipe_new (void) {
+    WIPE_NEW = Z_Malloc(SCREENWIDTH*SCREENHEIGHT*sizeof(pixel_t), PU_STATIC, NULL);
+    I_ReadScreen(WIPE_NEW);
+    V_DrawBlock(0, 0, SCREENWIDTH, SCREENHEIGHT, WIPE_OLD);
+}
+
+static void wipe_free (void) {
+    Z_Free(WIPE_OLD);
+    Z_Free(WIPE_NEW);
+}
+
+// A column (2 pixels wide) falls from `y0` to `y1`: the new screen
+// appears in the rows that it leaves, and the old one goes down.
+static void wipe_column (int col, int y0, int y1) {
+    for (int x=2*col; x<2*col+2; x++) {
+        for (int y=y0; y<y1; y++) {
+            I_VideoBuffer[y*SCREENWIDTH + x] = WIPE_NEW[y*SCREENWIDTH + x];
+        }
+        for (int y=y1; y<SCREENHEIGHT; y++) {
+            I_VideoBuffer[y*SCREENWIDTH + x] = WIPE_OLD[(y-y1)*SCREENWIDTH + x];
+        }
+    }
+}
+
+// Waits for the clock to pass `t`, and returns it (in tics).
+static int wipe_clock (int t) {
+    int now;
+    do {
+        now = I_GetTime();
+        I_Sleep(1);
+    } while (now <= t);
+    return now;
+}
 ```
 
+;; THE SCREEN WIPE
+;;
+;; The old screen melts into the new one: the columns fall, each after a
+;; delay of its own, and uncover the new screen.
+;;
+;; A wipe has its own time: it takes the tics of the clock, and not the
+;; tics of the game, which does not run meanwhile.
+
+val WIPE_H    = 200     ;; the height of the screen
+val WIPE_COLS = 160     ;; the columns, 2 pixels wide
+
+;; A column waits `wait` steps, and then falls: slow at first, 1 row
+;; more at each step, and then 8 rows per step.
+task Column (col, wait) {
+    await(wait, :wipe.step)
+    var y = 0
+    loop on :wipe.step {
+        val dy = if y < 16 => y+1 => 8
+        val y1 = math.min(y+dy, WIPE_H)
+        `wipe_column(a_dbl($col), a_dbl($y), a_dbl($y1));`
+        set y = y1
+        until y >= WIPE_H
+    }
+}
+
+task Wipe () {
+    `wipe_new();`
+    var t = `:number I_GetTime()` - 1
+
+    ;; The delays are a random walk from one column to the next, from 0
+    ;; to 15 steps. The original draws them for 320 columns and uses 160:
+    ;; the other 160 numbers are still taken from the generator.
+    pin cols = tasks()
+    var wait = `:number M_Random()` % 16
+    spawn @cols Column(0, wait)
+    loop col in (1, 2*WIPE_COLS-1) {
+        val r = (`:number M_Random()` % 3) - 1
+        set wait = math.max(0, math.min(15, wait-r))
+        if col < WIPE_COLS {
+            spawn @cols Column(col, wait)
+        }
+    }
+
+    ;; At each frame, one step per tic of the clock. The menu is drawn
+    ;; even on top of a wipe.
+    spawn {
+        loop on :frame {
+            val now = `:number wipe_clock(a_dbl($t))`
+            loop _ in (now - t) {
+                emit :wipe.step
+            }
+            set t = now
+            `I_UpdateNoBlit(); M_Drawer(); I_FinishUpdate();`
+        }
+    }
+
+    ;; It ends one frame after the last column reaches the bottom.
+    await :all cols
+    await :frame
+    `wipe_free();`
+}
+
+;; THE FRAMES
+;;
+;; A frame reads the input, runs the tics of the game that are due, and
+;; draws. When the engine draws a screen that changes the state of the
+;; game (a level begins, an intermission, ...), a wipe takes the next
+;; frames, and the game waits.
+
 loop on :frame {
-    `D_RunFrame();`
+    `I_StartFrame();`
+    `TryRunTics();`
+    `S_UpdateSounds(players[consoleplayer].mo);`
+    if `:boolean screenvisible && !nodrawers` {
+        if `:boolean D_Display()` {
+            await Wipe()
+        } else {
+            `I_FinishUpdate();`
+        }
+    }
 }
