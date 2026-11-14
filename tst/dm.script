@@ -1,0 +1,10 @@
+# A deathmatch of one player, which the timer ends after one minute:
+# the matrix of frags, and then the map.
+2100 down ctrl          # fires, with no enemy to kill
+2110 up ctrl
+2145 shot stats1.ppm
+2200 shot stats2.ppm
+2250 press space        # goes on to the map
+2260 shot map.ppm
+2500 shot next.ppm
+2550 quit
