@@ -57,7 +57,7 @@ $(OUT)/doom-c-tst: $(C_OBJS) $(TST_OBJS)
 	$(CC) -o $@ $^ $(SDL_L) -lm
 
 # the program in Atmos, through C
-$(OUT)/doom.atm.c: doom.atm $(ATMOS)/atmos
+$(OUT)/doom.atm.c: $(wildcard *.atm) $(ATMOS)/atmos
 	@mkdir -p $(dir $@)
 	$(ATMOS)/atmos -c doom.atm > $@
 
