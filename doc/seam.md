@@ -12,14 +12,14 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-Two lines, in one file.
+One file is changed, and one file left the build.
 
 | File | Change | Why |
 |------|--------|-----|
 | `src/doom/d_main.c`, `D_DoomLoop` | The loop `while (1) { D_RunFrame(); }` becomes one call, `D_DoomFrames();` | The loop of frames is control: it goes to the program |
 | `src/doom/d_main.c`, the prototypes | `void D_DoomFrames (void);` | The declaration of the call above |
-
-No file left the build.
+| `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe`. The function is in `c/main.c` as it was |
+| `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `doom.atm`. The file is still in the build of the engine all in C |
 
 ## Who runs
 
@@ -31,8 +31,8 @@ No file left the build.
 3. `D_DoomFrames` is in the `:prelude` of `doom.atm`. It is the
    environment of the program: it starts the runtime of Atmos, runs the
    main chunk, and then emits `:frame` forever.
-4. The main chunk reacts to each `:frame`. Today it only calls
-   `D_RunFrame`, which is still in C.
+4. The main chunk reacts to each `:frame`: it calls the engine for the
+   input, the tics that are due, the sound, and the drawing.
 5. The game ends inside the engine: `I_Quit` exits the process.
 
 The plan had it the other way: the `main` in the program, which would
@@ -57,9 +57,20 @@ From the program to the engine, as native calls:
 
 | Call | What |
 |------|------|
-| `D_RunFrame()` | A whole frame: input, the tics that are due, sound, drawing |
+| `I_StartFrame()`, `TryRunTics()`, `S_UpdateSounds(...)` | The input, the tics of the game that are due, the sound |
+| `D_Display()` | Draws the game. It answers whether a wipe must start |
+| `I_UpdateNoBlit()`, `M_Drawer()`, `I_FinishUpdate()` | The menu on top, and the end of a frame |
+| `I_GetTime()`, `I_Sleep(1)` | The clock, for the wipe |
+| `M_Random()` | The delays of the columns of the wipe |
+| `I_ReadScreen(...)`, `V_DrawBlock(...)`, `I_VideoBuffer`, `Z_Malloc`, `Z_Free` | The pixels of the wipe, in C functions of the `:prelude` |
+| `screenvisible`, `nodrawers`, `players[consoleplayer].mo` | Variables of the engine that the frame reads |
 
-From the engine to the program: nothing yet.
+From the engine to the program:
+
+| Call | What |
+|------|------|
+| `D_DoomFrames()` | Once: the engine gives the control to the program |
+| `wipe_StartScreen(...)` | `D_Display` is about to draw a screen that changes the state of the game. A C function of the `:prelude`, which keeps the old screen; it emits nothing |
 
 ## An emit from inside a call
 

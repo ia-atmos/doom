@@ -13,8 +13,8 @@ reactive concurrency.
   level, intermission, finale).
 
 The plan is in [`.claude/plans/261113-doom.md`](.claude/plans/261113-doom.md).
-So far the program in Atmos ([`doom.atm`](doom.atm)) runs the frames, and
-nothing else is ported. The changes to the engine are in
+So far the program in Atmos ([`doom.atm`](doom.atm)) has the loop of
+frames and the screen wipe. The changes to the engine are in
 [`doc/seam.md`](doc/seam.md).
 
 ## Build and test
