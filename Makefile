@@ -37,7 +37,7 @@ ENG_OBJS := $(ENG_SRCS:%.c=$(OUT)/%.o)
 TST_OBJS := $(TST_SRCS:%.c=$(OUT)/%.o)
 
 # these files of the engine are in the program in Atmos
-ATM_OUT  := $(OUT)/engine/src/doom/f_wipe.o
+ATM_OUT  := $(OUT)/engine/src/doom/f_wipe.o $(OUT)/engine/src/doom/wi_stuff.o
 ATM_OBJS := $(OUT)/doom.atm.o
 C_OBJS   := $(OUT)/c/main.o
 ATM_LIB  := $(ATMOS)/build/libatmos.a

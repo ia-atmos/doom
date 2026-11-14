@@ -13,6 +13,7 @@
 ;; The parts:
 ;;
 ;;      wipe.atm    the screen wipe
+;;      wi.atm      the intermission
 
 ```:prelude
 #include "doomdef.h"
@@ -25,6 +26,21 @@
 #include "s_sound.h"
 
 boolean D_Display (void);
+
+// An event from the engine to the program, by its tag. The engine calls
+// functions of the parts that left it (the intermission, ...), which
+// emit. Since the program is inside a call to the engine at that time,
+// the status of the emits is kept for the literal that made the call:
+//      `TryRunTics(); st = a_chk_aborted(DOOM_ST);`
+static AStatus DOOM_ST = A_OK;
+
+static void doom_emit (const char* tag) {
+    if (DOOM_ST == A_OK) {
+        AVal evt = a_strz(tag);
+        DOOM_ST = atm_emit(evt);
+        a_dec(evt);
+    }
+}
 
 // Called by the engine, once, in the place of its loop of frames.
 void D_DoomFrames (void) {
@@ -49,6 +65,7 @@ void D_DoomFrames (void) {
 ```
 
 include "wipe.atm"
+include "wi.atm"
 
 ;; THE FRAMES
 ;;
@@ -59,10 +76,12 @@ include "wipe.atm"
 
 loop on :frame {
     `I_StartFrame();`
-    `TryRunTics();`
+    `TryRunTics(); st = a_chk_aborted(DOOM_ST);`
     `S_UpdateSounds(players[consoleplayer].mo);`
     if `:boolean screenvisible && !nodrawers` {
-        if `:boolean D_Display()` {
+        val wipe = `:boolean D_Display()`
+        `st = a_chk_aborted(DOOM_ST);`
+        if wipe {
             await Wipe()
         } else {
             `I_FinishUpdate();`

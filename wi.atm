@@ -1,0 +1,547 @@
+;; THE INTERMISSION
+;;
+;; The screens between two levels: the statistics of the level that
+;; ended, with counters that run one after the other, and then the map
+;; of the episode, with the place of the next level.
+;;
+;; In the engine, it was engine/src/doom/wi_stuff.c.
+;;
+;; The engine emits:
+;;
+;;      :wi.start       a level ended (WI_Start)
+;;      :wi.tic         once per tic of the game, in the intermission
+;;      :wi.draw        once per frame, to draw the intermission
+;;      :wi.end         the game left the intermission
+;;
+;; The program emits:
+;;
+;;      :wi.accel       a player pressed fire or use, to skip a stage
+
+```:prelude
+#include "deh_main.h"
+#include "doomdef.h"
+#include "doomstat.h"
+#include "d_player.h"
+#include "g_game.h"
+#include "i_swap.h"
+#include "i_system.h"
+#include "m_random.h"
+#include "s_sound.h"
+#include "sounds.h"
+#include "v_video.h"
+#include "w_wad.h"
+#include "z_zone.h"
+
+static wbstartstruct_t* WI_WBS;
+
+// Called by the engine (G_DoCompleted): a level ended.
+void WI_Start (wbstartstruct_t* wbs) {
+    WI_WBS = wbs;
+    if (!wbs->maxkills)  wbs->maxkills  = 1;
+    if (!wbs->maxitems)  wbs->maxitems  = 1;
+    if (!wbs->maxsecret) wbs->maxsecret = 1;
+    if (gameversion < exe_ultimate && wbs->epsd > 2) {
+        wbs->epsd -= 3;
+    }
+    doom_emit("wi.start");
+}
+
+// Called by the engine (G_Ticker, D_Display).
+void WI_Ticker (void) { doom_emit("wi.tic");  }
+void WI_Drawer (void) { doom_emit("wi.draw"); }
+void WI_End    (void) { doom_emit("wi.end");  }
+
+// A graphic of the WAD, by its name.
+static patch_t* wi_patch (const char* name) {
+    return W_CacheLumpName(DEH_String(name), PU_CACHE);
+}
+
+// A player pressed fire or use in this tic (and was not holding it).
+static int wi_accel (void) {
+    int ret = 0;
+    for (int i=0; i<MAXPLAYERS; i++) {
+        player_t* player = &players[i];
+        if (!playeringame[i]) {
+            continue;
+        }
+        if (player->cmd.buttons & BT_ATTACK) {
+            if (!player->attackdown) {
+                ret = 1;
+            }
+            player->attackdown = true;
+        } else {
+            player->attackdown = false;
+        }
+        if (player->cmd.buttons & BT_USE) {
+            if (!player->usedown) {
+                ret = 1;
+            }
+            player->usedown = true;
+        } else {
+            player->usedown = false;
+        }
+    }
+    return ret;
+}
+```
+
+;; DRAWING
+
+func wi_draw (x, y, name) {
+    `V_DrawPatch(a_dbl($x), a_dbl($y), wi_patch(A_STR_OF($name)->s));`
+}
+
+func wi_width (name) {
+    `:number SHORT(wi_patch(A_STR_OF($name)->s)->width)`
+}
+
+func wi_height (name) {
+    `:number SHORT(wi_patch(A_STR_OF($name)->s)->height)`
+}
+
+;; The offsets of a graphic to its origin.
+func wi_left (name) {
+    `:number SHORT(wi_patch(A_STR_OF($name)->s)->leftoffset)`
+}
+
+func wi_top (name) {
+    `:number SHORT(wi_patch(A_STR_OF($name)->s)->topoffset)`
+}
+
+func wi_draw_center (y, name) {
+    wi_draw((320 - wi_width(name)) // 2, y, name)
+}
+
+;; Draws a number that ends at `x`, with at least `digits` digits, or as
+;; many as it needs if `digits` is negative. Returns where it starts.
+func wi_draw_num (x, y, n, digits) {
+    val w = wi_width("WINUM0")
+    var v = math.abs(n)
+    var d = digits
+    if d < 0 {
+        set d = 0
+        var tmp = v
+        loop {
+            while tmp != 0
+            set tmp = tmp // 10
+            set d += 1
+        }
+        set d = math.max(d, 1)
+    }
+    if v == 1994 {
+        0                               ;; not a number: draws nothing
+    } else {
+        var cur = x
+        loop _ in d {
+            set cur -= w
+            wi_draw(cur, y, "WINUM" ++ (v % 10))
+            set v = v // 10
+        }
+        if n < 0 {
+            set cur -= 8
+            wi_draw(cur, y, "WIMINUS")
+        }
+        cur
+    }
+}
+
+func wi_draw_percent (x, y, p) {
+    if p >= 0 {
+        wi_draw(x, y, "WIPCNT")
+        wi_draw_num(x, y, p, -1)
+    }
+}
+
+;; Draws a time in seconds as minutes and seconds, or "sucks" above one
+;; hour.
+func wi_draw_time (x, y, t) {
+    if t >= 0 {
+        if t <= 61*59 {
+            var cur = x
+            var div = 1
+            loop {
+                val n = (t // div) % 60
+                set cur = wi_draw_num(cur, y, n, 2) - wi_width("WICOLON")
+                set div *= 60
+                if (div == 60) || ((t // div) != 0) {
+                    wi_draw(cur, y, "WICOLON")
+                }
+                while (t // div) != 0
+            }
+        } else {
+            wi_draw(x - wi_width("WISUCKS"), y, "WISUCKS")
+        }
+    }
+}
+
+;; THE DATA OF THE EPISODES
+
+;; The places of the levels in the map of each episode.
+val WI_PLACES = [
+    [ [185,164], [148,143], [ 69,122], [209,102], [116, 89],
+      [166, 55], [ 71, 56], [135, 29], [ 71, 24] ],
+    [ [254, 25], [ 97, 50], [188, 64], [128, 78], [214, 92],
+      [133,130], [208,136], [148,140], [235,158] ],
+    [ [156,168], [ 48,154], [174, 95], [265, 75], [130, 48],
+      [279, 23], [198, 48], [140, 25], [281,136] ],
+]
+
+;; The animations in the map of each episode:
+;;      [kind, period, frames, x, y, level]
+;; An `:always` runs in a loop. A `:level` appears when its level is the
+;; next one, and stops at its last frame.
+val WI_ANIMS = [
+    [
+        [:always, 11, 3, 224, 104, 0],
+        [:always, 11, 3, 184, 160, 0],
+        [:always, 11, 3, 112, 136, 0],
+        [:always, 11, 3,  72, 112, 0],
+        [:always, 11, 3,  88,  96, 0],
+        [:always, 11, 3,  64,  48, 0],
+        [:always, 11, 3, 192,  40, 0],
+        [:always, 11, 3, 136,  16, 0],
+        [:always, 11, 3,  80,  16, 0],
+        [:always, 11, 3,  64,  24, 0],
+    ],
+    [
+        [:level, 11, 1, 128, 136, 1],
+        [:level, 11, 1, 128, 136, 2],
+        [:level, 11, 1, 128, 136, 3],
+        [:level, 11, 1, 128, 136, 4],
+        [:level, 11, 1, 128, 136, 5],
+        [:level, 11, 1, 128, 136, 6],
+        [:level, 11, 1, 128, 136, 7],
+        [:level, 11, 3, 192, 144, 8],
+        [:level, 11, 1, 128, 136, 8],
+    ],
+    [
+        [:always, 11, 3, 104, 168, 0],
+        [:always, 11, 3,  40, 136, 0],
+        [:always, 11, 3, 160,  96, 0],
+        [:always, 11, 3, 104,  80, 0],
+        [:always, 11, 3, 120,  32, 0],
+        [:always,  8, 3,  40,   0, 0],
+    ],
+]
+
+;; THE STATE OF AN INTERMISSION
+
+;; What the engine tells about the level that ended, and the tics since
+;; the intermission started.
+var WI = nil
+
+;; The "you are here" of the map blinks. It is kept from one intermission
+;; to the next, as in the original: the first frame of a map shows it as
+;; the previous map left it.
+var WI_POINTER = false
+
+func wi_init () {
+    set WI = [
+        tics       = 0,
+        commercial = `:boolean gamemode == commercial`,
+        epsd       = `:number WI_WBS->epsd`,
+        last       = `:number WI_WBS->last`,
+        next       = `:number WI_WBS->next`,
+        didsecret  = `:boolean WI_WBS->didsecret`,
+        kills      = `:number (WI_WBS->plyr[WI_WBS->pnum].skills  * 100) / WI_WBS->maxkills`,
+        items      = `:number (WI_WBS->plyr[WI_WBS->pnum].sitems  * 100) / WI_WBS->maxitems`,
+        secret     = `:number (WI_WBS->plyr[WI_WBS->pnum].ssecret * 100) / WI_WBS->maxsecret`,
+        time       = `:number WI_WBS->plyr[WI_WBS->pnum].stime / TICRATE`,
+        par        = `:number WI_WBS->partime / TICRATE`,
+    ]
+    ;; the map of an episode, with its places and animations
+    set WI.map = (!WI.commercial) && (WI.epsd <= 2)
+}
+
+;; The name of a level, as a graphic.
+func wi_level (n) {
+    if WI.commercial {
+        string.format("CWILV%02d", n)
+    } else {
+        string.format("WILV%d%d", WI.epsd, n)
+    }
+}
+
+func wi_sound (id) {
+    `S_StartSound(0, a_dbl($id));`
+}
+
+;; The pistol shots while a counter runs: one at each 4 tics.
+func wi_sound_count () {
+    if (WI.tics & 3) == 0 {
+        wi_sound(`:number sfx_pistol`)
+    }
+}
+
+;; THE ANIMATIONS OF THE MAP
+
+;; One animation: `i` is its index in the episode, and `a` its data.
+;; `stats` tells that the statistics are on screen, and not the map.
+task WI_Anim (i, a, stats) {
+    val kind, period, frames, x, y, level = a@0, a@1, a@2, a@3, a@4, a@5
+    var frame = -1                      ;; nothing to draw yet
+
+    par {
+        if kind == :always {
+            await((`:number M_Random()` % period) + 1, :wi.tic)
+            loop {
+                set frame = (frame + 1) % frames
+                await(period, :wi.tic)
+            }
+        } else {
+            ;; the animation 7 of the episode 1 is hidden in the
+            ;; statistics ("gawd-awful hack for level anims")
+            await :wi.tic
+            if (WI.next == level) && (!(stats && (i == 7))) {
+                loop {
+                    set frame = math.min(frame + 1, frames - 1)
+                    await(period, :wi.tic)
+                }
+            }
+        }
+    } with {
+        ;; the animation 8 of the episode 1 has the graphics of the 4
+        val j = if (WI.epsd == 1) && (i == 8) => 4 => i
+        loop on :wi.draw {
+            if frame >= 0 {
+                wi_draw(x, y, string.format("WIA%d%02d%02d", WI.epsd, j, frame))
+            }
+        }
+    }
+}
+
+;; All the animations of the episode, into the pool `as`.
+func wi_anims (as, stats) {
+    if WI.map {
+        loop i, a in WI_ANIMS@(WI.epsd) {
+            spawn @as WI_Anim(i, a, stats)
+        }
+    }
+}
+
+;; THE STATISTICS
+
+;; A counter in percent runs up to `max`, 2 at each tic, with shots.
+task WI_Count (cnt, key, max) {
+    loop on :wi.tic {
+        set cnt@(key) = cnt@(key) + 2
+        wi_sound_count()
+        until cnt@(key) >= max
+    }
+    set cnt@(key) = max
+    wi_sound(`:number sfx_barexp`)
+}
+
+;; Kills, items, secrets, and then the time with the par: each counter
+;; runs after a pause of one second. A player may skip to the end of all
+;; of them, and then goes on to the map.
+task WI_Stats () {
+    val cnt = [kills=-1, items=-1, secret=-1, time=-1, par=-1]
+
+    pin as = tasks()
+    wi_anims(as, true)
+
+    spawn {
+        val lh = (3 * wi_height("WINUM0")) // 2    ;; the height of a line
+        loop on :wi.draw {
+            ;; "<level> finished"
+            if (!WI.commercial) || (WI.last < 32) {
+                val name = wi_level(WI.last)
+                wi_draw_center(2, name)
+                wi_draw_center(2 + ((5 * wi_height(name)) // 4), "WIF")
+            } else {
+                if WI.last == 32 {
+                    wi_draw_center(2, "WIF")
+                } else {
+                    `I_Error("Bad V_DrawPatch");`
+                }
+            }
+
+            wi_draw(50, 50, "WIOSTK")
+            wi_draw_percent(320-50, 50, cnt.kills)
+            wi_draw(50, 50+lh, "WIOSTI")
+            wi_draw_percent(320-50, 50+lh, cnt.items)
+            wi_draw(50, 50+(2*lh), "WISCRT2")
+            wi_draw_percent(320-50, 50+(2*lh), cnt.secret)
+
+            wi_draw(16, 200-32, "WITIME")
+            wi_draw_time(160-16, 200-32, cnt.time)
+            if WI.epsd < 3 {
+                wi_draw(160+16, 200-32, "WIPAR")
+                wi_draw_time(320-16, 200-32, cnt.par)
+            }
+        }
+    }
+
+    var skipped = true
+    watching :wi.accel {
+        await(35, :wi.tic)
+        await WI_Count(cnt, "kills", WI.kills)
+        await(35, :wi.tic)
+        await WI_Count(cnt, "items", WI.items)
+        await(35, :wi.tic)
+        await WI_Count(cnt, "secret", WI.secret)
+        await(35, :wi.tic)
+
+        ;; the time and the par, 3 seconds at each tic
+        loop on :wi.tic {
+            wi_sound_count()
+            set cnt.time = math.min(cnt.time + 3, WI.time)
+            set cnt.par  = math.min(cnt.par  + 3, WI.par)
+            until (cnt.par >= WI.par) && (cnt.time >= WI.time)
+        }
+        wi_sound(`:number sfx_barexp`)
+        await(35, :wi.tic)
+
+        set skipped = false
+    }
+
+    if skipped {
+        set cnt.kills  = WI.kills
+        set cnt.items  = WI.items
+        set cnt.secret = WI.secret
+        set cnt.time   = WI.time
+        set cnt.par    = WI.par
+        wi_sound(`:number sfx_barexp`)
+    }
+
+    await :wi.accel
+    wi_sound(`:number sfx_sgcock`)
+}
+
+;; THE MAP
+;;
+;; The map of the episode, with a splat on the levels that are done and
+;; a "you are here" on the next one, which blinks for 4 seconds, or until
+;; a player skips it. Then the next level starts, after 10 tics.
+
+;; Draws the first of the graphics that fits in the screen, on the place
+;; of the level `n`.
+func wi_draw_place (n, names) {
+    val place = WI_PLACES@(WI.epsd)@(n)
+    val ok = loop _, name in names {
+        val left = place@0 - wi_left(name)
+        val top  = place@1 - wi_top(name)
+        val right  = left + wi_width(name)
+        val bottom = top  + wi_height(name)
+        if (left >= 0) && (right < 320) && (top >= 0) && (bottom < 200) {
+            wi_draw(place@0, place@1, name)
+            break true
+        }
+    }
+    if !ok {
+        print("Could not place patch on level " ++ (n+1))
+    }
+}
+
+task WI_Map () {
+    var leaving = false         ;; the last 10 tics
+
+    pin as = tasks()
+    wi_anims(as, false)
+
+    spawn {
+        loop on :wi.draw {
+            if leaving {
+                set WI_POINTER = true
+            }
+            if WI.map {
+                val last = if WI.last == 8 => WI.next-1 => WI.last
+                loop i in (0, last) {
+                    wi_draw_place(i, ["WISPLAT"])
+                }
+                if WI.didsecret {
+                    wi_draw_place(8, ["WISPLAT"])
+                }
+                if WI_POINTER {
+                    wi_draw_place(WI.next, ["WIURH0", "WIURH1"])
+                }
+            }
+            ;; "entering <level>"
+            if (!WI.commercial) || (WI.next != 30) {
+                wi_draw_center(2, "WIENTER")
+                val name = wi_level(WI.next)
+                wi_draw_center(2 + ((5 * wi_height(name)) // 4), name)
+            }
+        }
+    }
+
+    if !WI.commercial {
+        watching :wi.accel {
+            watching 140, :wi.tic {
+                ;; on for 20 tics and off for 12 (the first time, on for 12)
+                await :wi.tic
+                set WI_POINTER = true
+                await(12, :wi.tic)
+                loop {
+                    set WI_POINTER = false
+                    await(12, :wi.tic)
+                    set WI_POINTER = true
+                    await(20, :wi.tic)
+                }
+            }
+        }
+    }
+
+    set leaving = true
+    await(10, :wi.tic)
+    `G_WorldDone();`
+    await(false)                ;; the engine takes some tics to leave
+}
+
+;; AN INTERMISSION
+
+task WI_Intermission () {
+    wi_init()
+
+    if `:boolean deathmatch || netgame` {
+        `I_Error("wi.atm: the statistics of a net game are not ported yet");`
+    }
+
+    spawn {
+        loop on :wi.tic {
+            set WI.tics += 1
+        }
+    }
+
+    spawn {
+        await :wi.tic
+        if WI.commercial {
+            `S_ChangeMusic(mus_dm2int, true);`
+        } else {
+            `S_ChangeMusic(mus_inter, true);`
+        }
+    }
+
+    spawn {
+        loop on :wi.tic {
+            if `:boolean wi_accel()` {
+                emit :wi.accel
+            }
+        }
+    }
+
+    ;; the background, below all the rest
+    spawn {
+        val name = if WI.commercial || (`:boolean gameversion >= exe_ultimate` && (WI.epsd == 3)) {
+            "INTERPIC"
+        } else {
+            "WIMAP" ++ WI.epsd
+        }
+        loop on :wi.draw {
+            wi_draw(0, 0, name)
+        }
+    }
+
+    await WI_Stats()
+    await WI_Map()
+}
+
+spawn {
+    loop {
+        await :wi.start
+        watching :wi.end {
+            await WI_Intermission()
+        }
+    }
+}
