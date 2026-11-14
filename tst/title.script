@@ -1,0 +1,10 @@
+# The cycle of the title, with no input: the title, demo1, the credits,
+# demo2, the help page, demo3, and the title again.
+100   shot title.ppm
+300   shot demo1.ppm
+5300  shot credit.ppm
+5600  shot demo2.ppm
+9350  shot help.ppm
+9600  shot demo3.ppm
+11750 shot again.ppm
+12000 quit
