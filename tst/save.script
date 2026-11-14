@@ -1,0 +1,32 @@
+# A new game, a save, some play, a load, and the same play again.
+50  press escape        # the main menu
+70  press enter         # New Game
+90  press enter         # Knee-Deep in the Dead
+110 press enter         # Hurt me plenty
+170 down up             # walks
+210 up up
+220 press f2            # the menu of saving
+230 shot savemenu.ppm
+240 press enter         # the first slot
+250 press a             # its name
+260 press b
+270 shot savename.ppm
+280 press enter         # saves
+300 shot saved.ppm
+310 down right          # the play after the save: turns, fires, walks
+330 up right
+335 press ctrl
+350 down up
+400 up up
+410 shot played.ppm
+420 press f3            # the menu of loading
+430 shot loadmenu.ppm
+440 press enter         # the first slot
+460 shot loaded.ppm
+470 down right          # the same play
+490 up right
+495 press ctrl
+510 down up
+560 up up
+570 shot replayed.ppm
+600 quit
