@@ -1,0 +1,12 @@
+# From the title to a new game, through the menus.
+40  shot title.ppm
+50  press escape        # opens the main menu
+60  shot menu.ppm
+70  press enter         # New Game
+80  shot episode.ppm
+90  press enter         # Knee-Deep in the Dead
+100 shot skill.ppm
+110 press enter         # Hurt me plenty
+120 shot wipe.ppm       # the screen melts into the level
+200 shot level.ppm
+300 quit
