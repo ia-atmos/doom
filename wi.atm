@@ -257,26 +257,28 @@ func wi_init () {
     set WI.players = []
     loop i in 4 {
         if `:boolean playeringame[(int)a_dbl($i)]` {
-            val k = #WI.players
-            set WI.players@(k) = [
-                i      = i,
-                kills  = `:number (WI_WBS->plyr[(int)a_dbl($i)].skills  * 100) / WI_WBS->maxkills`,
-                items  = `:number (WI_WBS->plyr[(int)a_dbl($i)].sitems  * 100) / WI_WBS->maxitems`,
-                secret = `:number (WI_WBS->plyr[(int)a_dbl($i)].ssecret * 100) / WI_WBS->maxsecret`,
-                frags  = [],
-                total  = 0,
-            ]
-            val p = WI.players@(k)
-            loop j in 4 {
-                val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
-                set p.frags@(j) = n
-                if j == i {
-                    set p.total -= n
-                } else {
-                    if `:boolean playeringame[(int)a_dbl($j)]` {
-                        set p.total += n
+            set WI.players@(#WI.players) = do {
+                pin frags = []
+                var total = 0
+                loop j in 4 {
+                    val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
+                    set frags@(j) = n
+                    if j == i {
+                        set total -= n
+                    } else {
+                        if `:boolean playeringame[(int)a_dbl($j)]` {
+                            set total += n
+                        }
                     }
                 }
+                [
+                    i      = i,
+                    kills  = `:number (WI_WBS->plyr[(int)a_dbl($i)].skills  * 100) / WI_WBS->maxkills`,
+                    items  = `:number (WI_WBS->plyr[(int)a_dbl($i)].sitems  * 100) / WI_WBS->maxitems`,
+                    secret = `:number (WI_WBS->plyr[(int)a_dbl($i)].ssecret * 100) / WI_WBS->maxsecret`,
+                    frags  = frags,
+                    total  = total,
+                ]
             }
         }
     }

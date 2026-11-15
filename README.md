@@ -22,7 +22,7 @@ in [`doc/study.md`](doc/study.md). The changes to the engine are in
 
 It needs a C compiler, `make`, SDL2 (`libsdl2-dev`), and a checkout of
 the compiler of Atmos ([ia-atmos/lang](https://github.com/ia-atmos/lang)),
-already built with `make`, at the commit `09a7885` or later. `ATMOS` is its
+already built with `make`, at the commit `5593be2` or later. `ATMOS` is its
 path (default `../lang`).
 
 ```
