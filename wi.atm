@@ -177,7 +177,7 @@ func wi_draw_time (x, y, t) {
 ;; THE DATA OF THE EPISODES
 
 ;; The places of the levels in the map of each episode.
-val WI_PLACES = [
+pin WI_PLACES = [
     [ [185,164], [148,143], [ 69,122], [209,102], [116, 89],
       [166, 55], [ 71, 56], [135, 29], [ 71, 24] ],
     [ [254, 25], [ 97, 50], [188, 64], [128, 78], [214, 92],
@@ -190,7 +190,7 @@ val WI_PLACES = [
 ;;      [kind, period, frames, x, y, level]
 ;; An `:always` runs in a loop. A `:level` appears when its level is the
 ;; next one, and stops at its last frame.
-val WI_ANIMS = [
+pin WI_ANIMS = [
     [
         [:always, 11, 3, 224, 104, 0],
         [:always, 11, 3, 184, 160, 0],
@@ -228,7 +228,7 @@ val WI_ANIMS = [
 
 ;; What the engine tells about the level that ended, and the tics since
 ;; the intermission started.
-var WI = nil
+pin WI = []
 
 ;; The "you are here" of the map blinks. It is kept from one intermission
 ;; to the next, as in the original: the first frame of a map shows it as
@@ -236,19 +236,17 @@ var WI = nil
 var WI_POINTER = false
 
 func wi_init () {
-    set WI = [
-        tics       = 0,
-        commercial = `:boolean gamemode == commercial`,
-        epsd       = `:number WI_WBS->epsd`,
-        last       = `:number WI_WBS->last`,
-        next       = `:number WI_WBS->next`,
-        didsecret  = `:boolean WI_WBS->didsecret`,
-        kills      = `:number (WI_WBS->plyr[WI_WBS->pnum].skills  * 100) / WI_WBS->maxkills`,
-        items      = `:number (WI_WBS->plyr[WI_WBS->pnum].sitems  * 100) / WI_WBS->maxitems`,
-        secret     = `:number (WI_WBS->plyr[WI_WBS->pnum].ssecret * 100) / WI_WBS->maxsecret`,
-        time       = `:number WI_WBS->plyr[WI_WBS->pnum].stime / TICRATE`,
-        par        = `:number WI_WBS->partime / TICRATE`,
-    ]
+    set WI.tics       = 0
+    set WI.commercial = `:boolean gamemode == commercial`
+    set WI.epsd       = `:number WI_WBS->epsd`
+    set WI.last       = `:number WI_WBS->last`
+    set WI.next       = `:number WI_WBS->next`
+    set WI.didsecret  = `:boolean WI_WBS->didsecret`
+    set WI.kills      = `:number (WI_WBS->plyr[WI_WBS->pnum].skills  * 100) / WI_WBS->maxkills`
+    set WI.items      = `:number (WI_WBS->plyr[WI_WBS->pnum].sitems  * 100) / WI_WBS->maxitems`
+    set WI.secret     = `:number (WI_WBS->plyr[WI_WBS->pnum].ssecret * 100) / WI_WBS->maxsecret`
+    set WI.time       = `:number WI_WBS->plyr[WI_WBS->pnum].stime / TICRATE`
+    set WI.par        = `:number WI_WBS->partime / TICRATE`
     ;; the map of an episode, with its places and animations
     set WI.map = (!WI.commercial) && (WI.epsd <= 2)
 
@@ -259,27 +257,27 @@ func wi_init () {
     set WI.players = []
     loop i in 4 {
         if `:boolean playeringame[(int)a_dbl($i)]` {
-            val frags = []
-            var total = 0
-            loop j in 4 {
-                val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
-                set frags@(j) = n
-                if j == i {
-                    set total -= n
-                } else {
-                    if `:boolean playeringame[(int)a_dbl($j)]` {
-                        set total += n
-                    }
-                }
-            }
-            set WI.players@(#WI.players) = [
+            val k = #WI.players
+            set WI.players@(k) = [
                 i      = i,
                 kills  = `:number (WI_WBS->plyr[(int)a_dbl($i)].skills  * 100) / WI_WBS->maxkills`,
                 items  = `:number (WI_WBS->plyr[(int)a_dbl($i)].sitems  * 100) / WI_WBS->maxitems`,
                 secret = `:number (WI_WBS->plyr[(int)a_dbl($i)].ssecret * 100) / WI_WBS->maxsecret`,
-                frags  = frags,
-                total  = total,
+                frags  = [],
+                total  = 0,
             ]
+            val p = WI.players@(k)
+            loop j in 4 {
+                val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
+                set p.frags@(j) = n
+                if j == i {
+                    set p.total -= n
+                } else {
+                    if `:boolean playeringame[(int)a_dbl($j)]` {
+                        set p.total += n
+                    }
+                }
+            }
         }
     }
 }
@@ -382,7 +380,7 @@ task WI_Count (cnt, key, max) {
 ;; runs after a pause of one second. A player may skip to the end of all
 ;; of them, and then goes on to the map.
 task WI_Stats () {
-    val cnt = [kills=-1, items=-1, secret=-1, time=-1, par=-1]
+    pin cnt = [kills=-1, items=-1, secret=-1, time=-1, par=-1]
 
     pin as = tasks()
     wi_anims(as, true)
@@ -475,7 +473,7 @@ task WI_Count_All (cnts, key, max, step, sound) {
 }
 
 task WI_Stats_Net () {
-    val cnts = []
+    pin cnts = []
     loop _, p in WI.players {
         set cnts@(p.i) = [kills=0, items=0, secret=0, frags=0]
         if p.total != 0 {
@@ -559,8 +557,8 @@ task WI_Stats_Net () {
 ;; other, and the totals. All the numbers run together, 1 at each tic,
 ;; and stop at 99.
 task WI_Stats_Deathmatch () {
-    val cnts   = []         ;; cnts@i@j: the kills of `i` over `j`
-    val totals = []
+    pin cnts   = []         ;; cnts@i@j: the kills of `i` over `j`
+    pin totals = []
     loop _, p in WI.players {
         set cnts@(p.i)   = [0, 0, 0, 0]
         set totals@(p.i) = 0

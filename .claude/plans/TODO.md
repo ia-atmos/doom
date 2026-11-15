@@ -40,6 +40,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 41 | The Atmos code follows the new rules of `pin` (compiler `ia-atmos/lang@09a7885`, 2026-11-15): 8 declarations changed to `pin`, and two rewrites in `wi_init`; the ten tests are identical. Reported to the compiler session | Asked by the compiler session, with the approval of the author there |
 | 38 | D3 is done (2026-11-14): the intermission is in `wi.atm` (one player, deathmatch, cooperative, and the map); ten tests are identical; `doc/study.md` has the first comparison | Reported to the author in this session |
 | 39 | In `wi.atm`, the graphics are asked to the WAD by name at each draw, and not loaded once as in C: 150 lines less, and nothing changes on screen | Decided by this session |
 | 40 | `ANIM_RANDOM` of `wi_stuff.c` was not ported: no animation of the game is of that kind | Decided by this session |
