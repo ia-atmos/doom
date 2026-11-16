@@ -1,0 +1,15 @@
+# A new game, ended by the menu: the cycle of the title starts again.
+50  press escape        # the main menu
+70  press enter         # New Game
+90  press enter         # Knee-Deep in the Dead
+110 press enter         # Hurt me plenty
+300 press escape        # the main menu
+310 press down          # Options
+320 press enter
+330 shot options.ppm
+340 press enter         # End Game
+350 shot confirm.ppm
+360 press y             # yes
+400 shot title.ppm      # the title, after a wipe
+700 shot demo1.ppm      # the cycle goes on with the first demo
+800 quit
