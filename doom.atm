@@ -15,6 +15,7 @@
 ;;      patch.atm   the graphics of the WAD, by name
 ;;      wipe.atm    the screen wipe
 ;;      wi.atm      the intermission
+;;      fi.atm      the finale
 
 ```:prelude
 #include "doomdef.h"
@@ -68,6 +69,7 @@ void D_DoomFrames (void) {
 include "patch.atm"
 include "wipe.atm"
 include "wi.atm"
+include "fi.atm"
 
 ;; THE FRAMES
 ;;

@@ -1,0 +1,535 @@
+;; THE FINALE
+;;
+;; The end of an episode: a text typed over a background, and then a
+;; last screen. In the episode 3, the last screen scrolls and ends in
+;; "the end". Doom 2 has only the text between some levels, and after
+;; its last level, the cast of the monsters.
+;;
+;; In the engine, it was engine/src/doom/f_finale.c.
+;;
+;; The engine emits:
+;;
+;;      :fi.start       an episode ended (F_StartFinale)
+;;      :fi.tic         once per tic of the game, in the finale
+;;      :fi.draw        once per frame, to draw the finale
+;;      :fi.key         a key went down, during the cast
+
+```:prelude
+#include <string.h>
+
+#include "deh_main.h"
+#include "doomdef.h"
+#include "doomstat.h"
+#include "d_main.h"
+#include "dstrings.h"
+#include "i_swap.h"
+#include "i_video.h"
+#include "info.h"
+#include "r_state.h"
+#include "s_sound.h"
+#include "sounds.h"
+#include "v_video.h"
+#include "w_wad.h"
+#include "z_zone.h"
+
+// The text and the background of each finale.
+
+typedef struct {
+    GameMission_t mission;
+    int episode, level;
+    const char* background;
+    const char* text;
+} fi_screen_t;
+
+static fi_screen_t FI_SCREENS[] = {
+    { doom,      1, 8,  "FLOOR4_8",  E1TEXT},
+    { doom,      2, 8,  "SFLR6_1",   E2TEXT},
+    { doom,      3, 8,  "MFLR8_4",   E3TEXT},
+    { doom,      4, 8,  "MFLR8_3",   E4TEXT},
+    { doom2,     1, 6,  "SLIME16",   C1TEXT},
+    { doom2,     1, 11, "RROCK14",   C2TEXT},
+    { doom2,     1, 20, "RROCK07",   C3TEXT},
+    { doom2,     1, 30, "RROCK17",   C4TEXT},
+    { doom2,     1, 15, "RROCK13",   C5TEXT},
+    { doom2,     1, 31, "RROCK19",   C6TEXT},
+    { pack_tnt,  1, 6,  "SLIME16",   T1TEXT},
+    { pack_tnt,  1, 11, "RROCK14",   T2TEXT},
+    { pack_tnt,  1, 20, "RROCK07",   T3TEXT},
+    { pack_tnt,  1, 30, "RROCK17",   T4TEXT},
+    { pack_tnt,  1, 15, "RROCK13",   T5TEXT},
+    { pack_tnt,  1, 31, "RROCK19",   T6TEXT},
+    { pack_plut, 1, 6,  "SLIME16",   P1TEXT},
+    { pack_plut, 1, 11, "RROCK14",   P2TEXT},
+    { pack_plut, 1, 20, "RROCK07",   P3TEXT},
+    { pack_plut, 1, 30, "RROCK17",   P4TEXT},
+    { pack_plut, 1, 15, "RROCK13",   P5TEXT},
+    { pack_plut, 1, 31, "RROCK19",   P6TEXT},
+};
+
+// They are kept from one finale to the next, as in the original: a
+// finale with no screen of its own shows the ones of the last finale.
+static const char* FI_TEXT;
+static const char* FI_FLAT;
+
+// The cast is on screen: it takes the keys.
+static int FI_CAST = 0;
+
+// Called by the engine (G_Ticker, G_DoCompleted): an episode ended.
+void F_StartFinale (void) {
+    gameaction = ga_nothing;
+    gamestate = GS_FINALE;
+    viewactive = false;
+    automapactive = false;
+
+    for (size_t i=0; i<arrlen(FI_SCREENS); i++) {
+        fi_screen_t* screen = &FI_SCREENS[i];
+        if (gameversion == exe_chex && screen->mission == doom) {
+            screen->level = 5;          // "Hack for Chex Quest"
+        }
+        if (logical_gamemission == screen->mission
+         && (logical_gamemission != doom || gameepisode == screen->episode)
+         && gamemap == screen->level)
+        {
+            FI_TEXT = screen->text;
+            FI_FLAT = screen->background;
+        }
+    }
+    FI_TEXT = DEH_String(FI_TEXT);
+    FI_FLAT = DEH_String(FI_FLAT);
+    FI_CAST = 0;
+
+    doom_emit("fi.start");
+}
+
+// Called by the engine (G_Ticker, D_Display, G_Responder).
+void F_Ticker (void) { doom_emit("fi.tic");  }
+void F_Drawer (void) { doom_emit("fi.draw"); }
+
+boolean F_Responder (event_t* ev) {
+    if (!FI_CAST || ev->type != ev_keydown) {
+        return false;
+    }
+    doom_emit("fi.key");
+    return true;
+}
+
+// Fills the screen with a tile of 64x64.
+static void fi_tile (const char* name) {
+    byte* src = W_CacheLumpName(name, PU_CACHE);
+    pixel_t* dest = I_VideoBuffer;
+    for (int y=0; y<SCREENHEIGHT; y++) {
+        for (int x=0; x<SCREENWIDTH/64; x++) {
+            memcpy(dest, src+((y&63)<<6), 64);
+            dest += 64;
+        }
+        if (SCREENWIDTH&63) {
+            memcpy(dest, src+((y&63)<<6), SCREENWIDTH&63);
+            dest += (SCREENWIDTH&63);
+        }
+    }
+}
+
+// Draws the column `col` of a graphic at the column `x` of the screen.
+static void fi_column (int x, patch_t* patch, int col) {
+    column_t* column = (column_t*) ((byte*)patch + LONG(patch->columnofs[col]));
+    pixel_t* desttop = I_VideoBuffer + x;
+    while (column->topdelta != 0xff) {
+        byte* source = (byte*)column + 3;
+        pixel_t* dest = desttop + column->topdelta*SCREENWIDTH;
+        int count = column->length;
+        while (count--) {
+            *dest = *source++;
+            dest += SCREENWIDTH;
+        }
+        column = (column_t*) ((byte*)column + column->length + 4);
+    }
+}
+
+// The two screens of the end of the episode 3, side by side, scrolled.
+static void fi_scroll (int scrolled) {
+    patch_t* p1 = W_CacheLumpName(DEH_String("PFUB2"), PU_LEVEL);
+    patch_t* p2 = W_CacheLumpName(DEH_String("PFUB1"), PU_LEVEL);
+    for (int x=0; x<SCREENWIDTH; x++) {
+        if (x+scrolled < SCREENWIDTH) {
+            fi_column(x, p1, x+scrolled);
+        } else {
+            fi_column(x, p2, x+scrolled - SCREENWIDTH);
+        }
+    }
+}
+
+// THE CAST: the table of states of the engine, read by the program
+
+typedef struct {
+    const char* name;
+    mobjtype_t type;
+} fi_cast_t;
+
+static fi_cast_t FI_ORDER[] = {
+    {CC_ZOMBIE, MT_POSSESSED},
+    {CC_SHOTGUN, MT_SHOTGUY},
+    {CC_HEAVY, MT_CHAINGUY},
+    {CC_IMP, MT_TROOP},
+    {CC_DEMON, MT_SERGEANT},
+    {CC_LOST, MT_SKULL},
+    {CC_CACO, MT_HEAD},
+    {CC_HELL, MT_KNIGHT},
+    {CC_BARON, MT_BRUISER},
+    {CC_ARACH, MT_BABY},
+    {CC_PAIN, MT_PAIN},
+    {CC_REVEN, MT_UNDEAD},
+    {CC_MANCU, MT_FATSO},
+    {CC_ARCH, MT_VILE},
+    {CC_SPIDER, MT_SPIDER},
+    {CC_CYBER, MT_CYBORG},
+    {CC_HERO, MT_PLAYER},
+};
+
+// The sound of a row of the table, when the cast enters it.
+static int fi_cast_sound (int st) {
+    switch (st) {
+        case S_PLAY_ATK1:   return sfx_dshtgn;
+        case S_POSS_ATK2:   return sfx_pistol;
+        case S_SPOS_ATK2:   return sfx_shotgn;
+        case S_VILE_ATK2:   return sfx_vilatk;
+        case S_SKEL_FIST2:  return sfx_skeswg;
+        case S_SKEL_FIST4:  return sfx_skepch;
+        case S_SKEL_MISS2:  return sfx_skeatk;
+        case S_FATT_ATK8:
+        case S_FATT_ATK5:
+        case S_FATT_ATK2:   return sfx_firsht;
+        case S_CPOS_ATK2:
+        case S_CPOS_ATK3:
+        case S_CPOS_ATK4:   return sfx_shotgn;
+        case S_TROO_ATK3:   return sfx_claw;
+        case S_SARG_ATK2:   return sfx_sgtatk;
+        case S_BOSS_ATK2:
+        case S_BOS2_ATK2:
+        case S_HEAD_ATK2:   return sfx_firsht;
+        case S_SKULL_ATK2:  return sfx_sklatk;
+        case S_SPID_ATK2:
+        case S_SPID_ATK3:   return sfx_shotgn;
+        case S_BSPI_ATK2:   return sfx_plasma;
+        case S_CYBER_ATK2:
+        case S_CYBER_ATK4:
+        case S_CYBER_ATK6:  return sfx_rlaunc;
+        case S_PAIN_ATK3:   return sfx_sklatk;
+        default:            return 0;
+    }
+}
+
+// Draws the sprite of a row of the table, in the middle of the screen.
+static void fi_cast_sprite (int st) {
+    spritedef_t* sprdef = &sprites[states[st].sprite];
+    spriteframe_t* sprframe = &sprdef->spriteframes[states[st].frame & FF_FRAMEMASK];
+    patch_t* patch = W_CacheLumpNum(sprframe->lump[0]+firstspritelump, PU_CACHE);
+    if (sprframe->flip[0]) {
+        V_DrawPatchFlipped(SCREENWIDTH/2, 170, patch);
+    } else {
+        V_DrawPatch(SCREENWIDTH/2, 170, patch);
+    }
+}
+```
+
+func fi_sound (id) {
+    `S_StartSound(NULL, a_dbl($id));`
+}
+
+;; THE TEXT
+;;
+;; One more character at each 3 tics, after the first 10.
+
+task FI_Text (text) {
+    val flat = `:string FI_FLAT`
+    var chars = 0
+
+    spawn {
+        await(10, :fi.tic)
+        loop on 3, :fi.tic {
+            set chars += 1
+        }
+    }
+
+    loop on :fi.draw {
+        `fi_tile(A_STR_OF($flat)->s);`
+        var x = 10
+        var y = 10
+        loop i in math.min(chars, #text) {
+            val c = string.byte(text, i)
+            if c == 10 {                ;; a new line
+                set x = 10
+                set y += 11
+            } else {
+                val name = font_patch(c)
+                if name {
+                    val w = patch_width(name)
+                    until (x + w) > 320
+                    patch_draw(x, y, name)
+                    set x += w
+                } else {
+                    set x += 4
+                }
+            }
+        }
+    }
+}
+
+;; THE LAST SCREEN OF AN EPISODE
+
+;; The stage of "the end" that was last drawn in the episode 3. It is
+;; kept from one finale to the next, as in the original.
+var FI_END = 0
+
+;; The episode 3: a screen scrolls into another, 1 pixel at each 2 tics
+;; after 230 tics; "the end" appears at the tic 1130, and its letters
+;; are shot one by one from the tic 1180, at each 5 tics.
+task FI_Bunny () {
+    var tics = 0
+    spawn {
+        loop on :fi.tic {
+            set tics += 1
+        }
+    }
+    loop on :fi.draw {
+        val scrolled = math.max(0, math.min(320, 320 - `:number ((int)a_dbl($tics) - 230) / 2`))
+        `fi_scroll(a_dbl($scrolled));`
+        if tics >= 1130 {
+            if tics < 1180 {
+                patch_draw((320 - (13*8)) // 2, (200 - (8*8)) // 2, "END0")
+                set FI_END = 0
+            } else {
+                val stage = math.min(6, (tics - 1180) // 5)
+                if stage > FI_END {
+                    fi_sound(`:number sfx_pistol`)
+                    set FI_END = stage
+                }
+                patch_draw((320 - (13*8)) // 2, (200 - (8*8)) // 2, "END" ++ stage)
+            }
+        }
+    }
+}
+
+task FI_Art (episode) {
+    if episode == 3 {
+        await FI_Bunny()
+    } else {
+        var name = nil
+        if episode == 1 {
+            set name = if `:boolean gameversion >= exe_ultimate` => "CREDIT" => "HELP2"
+        }
+        if episode == 2 {
+            set name = "VICTORY2"
+        }
+        if episode == 4 {
+            set name = "ENDPIC"
+        }
+        loop on :fi.draw {
+            if name {
+                patch_draw(0, 0, name)
+            }
+        }
+    }
+}
+
+;; THE CAST
+;;
+;; The monsters of the game, one after the other, each with its name: it
+;; walks, attacks, walks again, and dies when a key is pressed. Then the
+;; next one comes.
+;;
+;; It follows the table of states of the engine: `st` is a row, which
+;; lasts some tics and names the next row.
+
+func fi_cast_see (num) {
+    `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].seestate`
+}
+
+task FI_Cast () {
+    var num       = 0           ;; the monster
+    var st        = fi_cast_see(0)
+    var dying     = false
+    var frames    = 0           ;; the rows since it started to walk
+    var melee     = false       ;; the next attack is from close
+    var attacking = false
+
+    `wipegamestate = -1;`       ;; forces a screen wipe
+    `S_ChangeMusic(mus_evil, true);`
+    `FI_CAST = 1;`
+
+    spawn {
+        loop on :fi.draw {
+            patch_draw(0, 0, "BOSSBACK")
+            val name = `:string DEH_String(FI_ORDER[(int)a_dbl($num)].name)`
+            var x = 160 - (font_width(name) // 2)
+            loop i in #name {
+                val p = font_patch(string.byte(name, i))
+                if p {
+                    patch_draw(x, 180, p)
+                    set x += patch_width(p)
+                } else {
+                    set x += 4
+                }
+            }
+            `fi_cast_sprite(a_dbl($st));`
+        }
+    }
+
+    ;; the cast starts inside a tic, which counts for its first row
+    var tics = `:number states[(int)a_dbl($st)].tics` - 1
+    loop {
+        ;; the tics of the row, unless a key kills the monster first
+        val key = par :any {
+            await(math.max(1, tics), :fi.tic)
+            false
+        } with {
+            await :fi.key until !dying
+            true
+        }
+
+        if key {
+            set dying     = true
+            set st        = `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].deathstate`
+            set tics      = `:number states[(int)a_dbl($st)].tics`
+            set frames    = 0
+            set attacking = false
+            val snd = `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].deathsound`
+            if snd != 0 {
+                fi_sound(snd)
+            }
+        } else {
+            var stop = false    ;; the attack of the player has one row ("gross hack")
+
+            if `:boolean states[(int)a_dbl($st)].tics == -1 || states[(int)a_dbl($st)].nextstate == S_NULL` {
+                ;; the last row of a death: the next monster
+                set num   = (num + 1) % (`:number arrlen(FI_ORDER)`)
+                set dying = false
+                val snd = `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].seesound`
+                if snd != 0 {
+                    fi_sound(snd)
+                }
+                set st     = fi_cast_see(num)
+                set frames = 0
+            } else {
+                if `:boolean (int)a_dbl($st) == S_PLAY_ATK1` {
+                    set stop = true
+                } else {
+                    set st = `:number states[(int)a_dbl($st)].nextstate`
+                    set frames += 1
+                    val snd = `:number fi_cast_sound(a_dbl($st))`
+                    if snd != 0 {
+                        fi_sound(snd)
+                    }
+                }
+            }
+
+            if !stop {
+                if frames == 12 {
+                    ;; attacks: from close and from far, in turns
+                    set attacking = true
+                    set st = if melee {
+                        `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].meleestate`
+                    } else {
+                        `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].missilestate`
+                    }
+                    set melee = !melee
+                    if `:boolean (int)a_dbl($st) == S_NULL` {
+                        ;; it has no such attack: the other one
+                        set st = if melee {
+                            `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].meleestate`
+                        } else {
+                            `:number mobjinfo[FI_ORDER[(int)a_dbl($num)].type].missilestate`
+                        }
+                    }
+                }
+                if attacking {
+                    if (frames == 24) || (st == fi_cast_see(num)) {
+                        set stop = true
+                    }
+                }
+            }
+
+            if stop {
+                ;; walks again
+                set attacking = false
+                set frames    = 0
+                set st        = fi_cast_see(num)
+            }
+
+            set tics = `:number states[(int)a_dbl($st)].tics`
+            if tics == -1 {
+                set tics = 15
+            }
+        }
+    }
+}
+
+;; A FINALE
+
+task FI_Finale () {
+    val commercial = `:boolean gamemode == commercial`
+    val text       = `:string FI_TEXT`
+
+    if `:boolean logical_gamemission == doom` {
+        `S_ChangeMusic(mus_victor, true);`
+    } else {
+        `S_ChangeMusic(mus_read_m, true);`
+    }
+
+    if commercial {
+        ;; Doom 2: the text stays until a player presses a button, after
+        ;; 50 tics. Then the next level, or the cast after the last one.
+        watching :fi.cast {
+            await FI_Text(text)
+        }
+        loop {
+            watching :fi.cast {
+                await FI_Cast()
+            }
+        }
+    } else {
+        ;; Doom: the text stays 250 tics after its last character, and
+        ;; then the last screen comes, with a wipe.
+        watching ((#text * 3) + 251), :fi.tic {
+            await FI_Text(text)
+        }
+        `wipegamestate = -1;`       ;; forces a screen wipe
+        val episode = `:number gameepisode`
+        if episode == 3 {
+            `S_StartMusic(mus_bunny);`
+        }
+        await FI_Art(episode)
+    }
+}
+
+spawn {
+    await :fi.start
+    loop {
+        watching :fi.start {
+            par {
+                ;; Doom 2: after 50 tics, a button of any player skips
+                ;; the text
+                if `:boolean gamemode == commercial` {
+                    await(52, :fi.tic)
+                    loop {
+                        var pressed = false
+                        loop i in 4 {
+                            if `:boolean players[(int)a_dbl($i)].cmd.buttons != 0` {
+                                set pressed = true
+                            }
+                        }
+                        if pressed {
+                            if `:boolean gamemap == 30` {
+                                emit :fi.cast
+                            } else {
+                                `gameaction = ga_worlddone;`
+                            }
+                        }
+                        await :fi.tic
+                    }
+                }
+            } with {
+                await FI_Finale()
+            }
+        }
+    }
+}
