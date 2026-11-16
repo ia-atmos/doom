@@ -12,7 +12,7 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-One file is changed, and two files left the build.
+One file is changed, and three files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
@@ -21,6 +21,7 @@ One file is changed, and two files left the build.
 | `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe`. The function is in `c/main.c` as it was |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
+| `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |
 
 ## Who runs
 
@@ -69,6 +70,9 @@ From the program to the engine, as native calls:
 | `S_StartSound(...)`, `S_ChangeMusic(...)` | The sounds of the intermission |
 | `G_WorldDone()` | The intermission is over: the next level may start |
 | `M_Random()` | The first frame of each animation of the map |
+| `wipegamestate = -1`, `gameaction = ga_worlddone`, `gamestate`, `viewactive`, `automapactive` | Variables of the engine that the finale writes: a wipe is forced, the next level is asked |
+| `states[]`, `mobjinfo[]`, `sprites[]` | The table of states, read by the cast of the finale |
+| `gameepisode`, `gamemap`, `gamemission` | What the finale reads to choose its screens |
 | `WI_WBS->...`, `players[]`, `playeringame[]`, `gamemode`, `gameversion`, `deathmatch`, `netgame` | What the intermission reads: the statistics of the level, the buttons of the players, the kind of game |
 
 From the engine to the program:
@@ -81,6 +85,10 @@ From the engine to the program:
 | `WI_Ticker()` | A tic of the game in the intermission (`G_Ticker`). Emits `:wi.tic` |
 | `WI_Drawer()` | The intermission must be drawn (`D_Display`). Emits `:wi.draw` |
 | `WI_End()` | The game left the intermission (`G_Ticker`). Emits `:wi.end` |
+| `F_StartFinale()` | An episode ended (`G_Ticker`, `G_DoCompleted`). Sets the state of the game, chooses the text, and emits `:fi.start` |
+| `F_Ticker()` | A tic of the game in the finale (`G_Ticker`). Emits `:fi.tic` |
+| `F_Drawer()` | The finale must be drawn (`D_Display`). Emits `:fi.draw` |
+| `F_Responder(ev)` | An input event in the finale (`G_Responder`). During the cast, a key down emits `:fi.key`, and the function answers that it took the event |
 
 These calls come while the program is inside a call to the engine
 (`TryRunTics`, `D_Display`). The status of their emits is kept in a

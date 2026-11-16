@@ -138,3 +138,65 @@ in the text of a task says that it draws before another.
 
 The animations of kind `ANIM_RANDOM` are not in the data of the game,
 and were not ported.
+
+## The finale
+
+| | C (`f_finale.c`) | Atmos (`fi.atm`) |
+|---|---|---|
+| Lines | 547 | 413, of which 190 are C in the `:prelude` |
+
+Half of the Atmos file is C: the table of the texts, the order of the
+cast with its sounds, and the copies of pixels (a tiled background, the
+scroll of two screens, a sprite of the table of states). They are data
+and drawing, with no state.
+
+### The stages
+
+In C, `finalestage` says which of the three stages is on (the text, the
+last screen, the cast), and `finalecount` counts the tics of the stage.
+Every function starts by testing them. In Atmos:
+
+```
+watching ((#text * 3) + 251), :fi.tic {
+    await FI_Text(text)
+}
+`wipegamestate = -1;`       ;; forces a screen wipe
+await FI_Art(episode)
+```
+
+- The typing of the text was arithmetic at each draw (`count =
+  (finalecount - 10) / TEXTSPEED`). It is now a task of `FI_Text`:
+  `await(10, :fi.tic)`, and then one more character in a
+  `loop on 3, :fi.tic`.
+- The time of the text on screen was a test at each tic
+  (`finalecount > strlen(finaletext)*TEXTSPEED + TEXTWAIT`). It is the
+  `watching` above.
+
+### What reads worse
+
+- **The cast** follows the table of states of the engine: a row, its
+  tics, the next row. In Atmos it is still that machine, with the same
+  six variables, in one loop that waits the tics of a row and then
+  decides the next. It reads no better than C, and each field of the
+  table is a native literal
+  (`` `:number states[(int)a_dbl($st)].nextstate` ``). The only gain is
+  the key that kills a monster: a `par :any` between the tics of the row
+  and the key, where C had a second function that changed the variables
+  of the first.
+- **A sound started by the drawing.** In the end of the episode 3, C
+  starts a shot when it draws a new stage of "the end", and not when a
+  tic comes. The Atmos version keeps it in the drawing, to be the same.
+- **Three more globals for quirks of the original**: the text and the
+  background are kept from one finale to the next (in C, in the
+  `:prelude`), and so is the last stage of "the end" (`FI_END`).
+
+### What was verified, and what was not
+
+| Verified by a test, identical to C | Not verified |
+|---|---|
+| The episode 1: the text typed, its time, the wipe, the last screen (`finale`) | The episodes 2, 3 (the scroll and "the end"), and 4 |
+| | Doom 2: the text skipped by a button, and the whole cast |
+| | The finale reached by playing: the test ends E1M8 with the timer of a deathmatch, which calls the same function |
+
+The shareware WAD has only the episode 1. The cast, the scroll, and the
+skip were ported by reading the C, and have never run.
