@@ -903,6 +903,8 @@ boolean G_Responder (event_t* ev)
  
  
  
+void G_DoActions (void);
+
 //
 // G_Ticker
 // Make ticcmd_ts for the players.
@@ -919,44 +921,8 @@ void G_Ticker (void)
 	    G_DoReborn (i);
     
     // do things to change the game state
-    while (gameaction != ga_nothing) 
-    { 
-	switch (gameaction) 
-	{ 
-	  case ga_loadlevel: 
-	    G_DoLoadLevel (); 
-	    break; 
-	  case ga_newgame: 
-	    G_DoNewGame (); 
-	    break; 
-	  case ga_loadgame: 
-	    G_DoLoadGame (); 
-	    break; 
-	  case ga_savegame: 
-	    G_DoSaveGame (); 
-	    break; 
-	  case ga_playdemo: 
-	    G_DoPlayDemo (); 
-	    break; 
-	  case ga_completed: 
-	    G_DoCompleted (); 
-	    break; 
-	  case ga_victory: 
-	    F_StartFinale (); 
-	    break; 
-	  case ga_worlddone: 
-	    G_DoWorldDone (); 
-	    break; 
-	  case ga_screenshot: 
-	    V_ScreenShot("DOOM%02i.%s"); 
-            players[consoleplayer].message = DEH_String("screen shot");
-	    gameaction = ga_nothing; 
-	    break; 
-	  case ga_nothing: 
-	    break; 
-	} 
-    }
-    
+    G_DoActions ();
+
     // get commands, check consistancy,
     // and build new consistancy check
     buf = (gametic/ticdup)%BACKUPTICS; 

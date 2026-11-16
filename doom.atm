@@ -2,7 +2,9 @@
 ;;
 ;; The engine (engine/, in C) simulates and draws. It starts by itself
 ;; (D_DoomMain), and where it had its loop of frames, it calls this
-;; program (D_DoomFrames), which runs the frames and never returns.
+;; program (D_DoomFrames), which runs the frames and never returns. The
+;; program starts at the first call from the engine, which may come
+;; before (see doom_start).
 ;;
 ;; The environment below emits:
 ;;
@@ -16,6 +18,7 @@
 ;;      wipe.atm    the screen wipe
 ;;      wi.atm      the intermission
 ;;      fi.atm      the finale
+;;      flow.atm    the flow: the title, the demos, the levels
 
 ```:prelude
 #include "doomdef.h"
@@ -29,6 +32,10 @@
 
 boolean D_Display (void);
 
+// The program starts at the first call from the engine, which may come
+// before D_DoomFrames: D_DoomMain starts the title, and runs a first tic.
+static int DOOM_ON = 0;
+
 // An event from the engine to the program, by its tag. The engine calls
 // functions of the parts that left it (the intermission, ...), which
 // emit. Since the program is inside a call to the engine at that time,
@@ -36,7 +43,16 @@ boolean D_Display (void);
 //      `TryRunTics(); st = a_chk_aborted(DOOM_ST);`
 static AStatus DOOM_ST = A_OK;
 
+static void doom_start (void) {
+    if (!DOOM_ON) {
+        DOOM_ON = 1;
+        atm_init(myargc, myargv);
+        DOOM_ST = atm_main();       // the main chunk, up to its first await
+    }
+}
+
 static void doom_emit (const char* tag) {
+    doom_start();
     if (DOOM_ST == A_OK) {
         AVal evt = a_strz(tag);
         DOOM_ST = atm_emit(evt);
@@ -46,8 +62,8 @@ static void doom_emit (const char* tag) {
 
 // Called by the engine, once, in the place of its loop of frames.
 void D_DoomFrames (void) {
-    atm_init(myargc, myargv);
-    AStatus st = atm_main();        // the main chunk, up to its first await
+    doom_start();
+    AStatus st = DOOM_ST;
 
     AVal frame = a_strz("frame");
     while (st==A_OK && atm_alive()) {
@@ -70,6 +86,7 @@ include "patch.atm"
 include "wipe.atm"
 include "wi.atm"
 include "fi.atm"
+include "flow.atm"
 
 ;; THE FRAMES
 ;;

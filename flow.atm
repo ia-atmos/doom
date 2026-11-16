@@ -1,0 +1,261 @@
+;; THE FLOW OF THE GAME
+;;
+;; What comes after what: the cycle of the title, with its pages and
+;; demos, and a game, from level to intermission to level, or to the
+;; finale.
+;;
+;; In the engine, it was the "demo loop" of engine/src/doom/d_main.c,
+;; with the variables `demosequence` and `pagetic`, and the dispatch of
+;; `gameaction` in G_Ticker, of engine/src/doom/g_game.c.
+;;
+;; The engine asks for an action by setting `gameaction` (the menu asks
+;; for a new game, a level asks to end, the intermission asks for the
+;; next level), and calls G_DoActions at the start of each tic. The
+;; program emits each action as an event, and the task to which it
+;; belongs does it, with the functions of the engine (G_DoNewGame,
+;; G_DoCompleted, ...).
+;;
+;; The engine emits:
+;;
+;;      :g.newgame      :g.loadgame     :g.playdemo     a game starts
+;;      :g.completed    :g.victory      :g.worlddone    a game goes on
+;;      :g.loadlevel    :g.savegame     :g.screenshot   at any time
+;;
+;;      :title.start    the cycle of the title starts again (D_StartTitle)
+;;      :title.next     the next step of the title (D_DoAdvanceDemo)
+;;      :page.tic       a tic of a page of the title (D_PageTicker)
+;;      :page.draw      a page must be drawn (D_PageDrawer)
+
+```:prelude
+#include <strings.h>
+
+#include "deh_main.h"
+#include "doomdef.h"
+#include "doomstat.h"
+#include "d_main.h"
+#include "f_finale.h"
+#include "g_game.h"
+#include "s_sound.h"
+#include "sounds.h"
+#include "v_video.h"
+#include "w_wad.h"
+
+void G_DoLoadLevel (void);
+void G_DoNewGame (void);
+void G_DoSaveGame (void);
+void G_DoPlayDemo (void);
+void G_DoCompleted (void);
+void G_DoWorldDone (void);
+
+// THE ACTIONS
+
+static const char* G_ACTIONS[] = {
+    NULL,               // ga_nothing
+    "g.loadlevel",
+    "g.newgame",
+    "g.loadgame",
+    "g.savegame",
+    "g.playdemo",
+    "g.completed",
+    "g.victory",
+    "g.worlddone",
+    "g.screenshot",
+};
+
+// Called by the engine (G_Ticker), at the start of each tic.
+void G_DoActions (void) {
+    while (gameaction != ga_nothing && DOOM_ST == A_OK) {
+        gameaction_t act = gameaction;
+        doom_emit(G_ACTIONS[act]);
+        if (DOOM_ST == A_OK && gameaction == act) {
+            I_Error("flow.atm: no task did the action %s", G_ACTIONS[act]);
+        }
+    }
+}
+
+// THE TITLE
+
+// Called by the engine: a demo ended, or a page.
+void D_AdvanceDemo (void) {
+    advancedemo = true;
+}
+
+// Called by the engine (D_DoomMain, M_EndGame): the title starts again.
+void D_StartTitle (void) {
+    gameaction = ga_nothing;
+    doom_emit("title.start");
+    D_AdvanceDemo();
+}
+
+// Called by the engine (RunTic, of d_net.c), when `advancedemo` is set.
+void D_DoAdvanceDemo (void) {
+    players[consoleplayer].playerstate = PST_LIVE;  // not reborn
+    advancedemo = false;
+    usergame = false;               // no save / end game here
+    paused = false;
+    gameaction = ga_nothing;
+    doom_emit("title.next");
+}
+
+void D_PageTicker (void) { doom_emit("page.tic");  }
+void D_PageDrawer (void) { doom_emit("page.draw"); }
+```
+
+;; THE TITLE
+;;
+;; Pages and demos, in a cycle. A step lasts until the engine asks for
+;; the next one (:title.next): a page asks after its time, and a demo
+;; when it ends.
+
+;; A page of the title, for `tics` tics.
+task Page (name, tics) {
+    `gamestate = GS_DEMOSCREEN;`
+    ;; The Doom 3: BFG Edition has no TITLEPIC
+    val page = if (name == "TITLEPIC") && `:boolean gamevariant == bfgedition && W_CheckNumForName("titlepic") < 0` {
+        "INTERPIC"
+    } else {
+        name
+    }
+    spawn {
+        loop on :page.draw {
+            patch_draw(0, 0, page)
+        }
+    }
+    await((tics + 1), :page.tic)
+    `D_AdvanceDemo();`
+    await(false)                    ;; stays on screen until the next step
+}
+
+func title_music () {
+    if `:boolean gamemode == commercial` {
+        `S_StartMusic(mus_dm2ttl);`
+    } else {
+        `S_StartMusic(mus_intro);`
+    }
+}
+
+;; A demo of the game: the engine plays it, as a game (see Game below).
+task Demo (name) {
+    `G_DeferedPlayDemo(DEH_String(A_STR_OF($name)->s));`
+    await(false)
+}
+
+task Title () {
+    val commercial = `:boolean gamemode == commercial`
+    val ultimate   = `:boolean gameversion == exe_ultimate || gameversion == exe_final`
+
+    await :title.next
+    loop {
+        watching :title.next {
+            title_music()
+            await Page("TITLEPIC", if commercial => 11*35 => 170)
+        }
+        watching :title.next {
+            await Demo("demo1")
+        }
+        watching :title.next {
+            await Page("CREDIT", 200)
+        }
+        watching :title.next {
+            await Demo("demo2")
+        }
+        watching :title.next {
+            if commercial {
+                title_music()
+                await Page("TITLEPIC", 11*35)
+            } else {
+                await Page(if `:boolean gameversion >= exe_ultimate` => "CREDIT" => "HELP2", 200)
+            }
+        }
+        watching :title.next {
+            await Demo("demo3")
+        }
+        if ultimate {
+            ;; THE DEFINITIVE DOOM Special Edition demo
+            watching :title.next {
+                await Demo("demo4")
+            }
+        }
+    }
+}
+
+;; THE GAME
+;;
+;; A game starts with a new game, a saved game, or a demo, and goes from
+;; level to level. Each level ends in an intermission, or in the finale
+;; after the last level of an episode.
+
+task Game (start) {
+    if start == "g.newgame" {
+        `G_DoNewGame();`
+    }
+    if start == "g.loadgame" {
+        `G_DoLoadGame();`
+    }
+    if start == "g.playdemo" {
+        `G_DoPlayDemo();`
+    }
+    ;; "g.warp": the engine started the game by itself (-warp)
+
+    loop {
+        await :g.completed          ;; the level ends
+        `G_DoCompleted();`         ;; the intermission, or the victory
+        if `:boolean gameaction == ga_victory` {
+            await :g.victory
+            `F_StartFinale();`
+        }
+        await :g.worlddone          ;; the next level, after the intermission
+        `G_DoWorldDone();`         ;; (and after a finale of Doom 2)
+    }
+}
+
+;; What may come at any time in a game: a death that loads the level
+;; again, a save, a screenshot.
+spawn {
+    loop on :g.loadlevel {
+        `G_DoLoadLevel();`
+    }
+}
+spawn {
+    loop on :g.savegame {
+        `G_DoSaveGame();`
+    }
+}
+spawn {
+    loop on :g.screenshot {
+        `V_ScreenShot("DOOM%02i.%s");`
+        `players[consoleplayer].message = DEH_String("screen shot");`
+        `gameaction = ga_nothing;`
+    }
+}
+
+;; THE FLOW
+;;
+;; The title is always there, and restarts when the engine asks. A game
+;; starts on top of it, and ends when another starts, or when the title
+;; starts again (the menu ends the game).
+
+spawn {
+    loop {
+        watching :title.start {
+            await Title()
+        }
+    }
+}
+
+spawn {
+    ;; a game that the engine started before this program (-warp): the
+    ;; view is only active after a level starts
+    var start = if `:boolean viewactive` => "g.warp" => nil
+    loop {
+        if start == nil {
+            set start = await <:g.newgame || :g.loadgame || :g.playdemo>
+        }
+        set start = par :any {
+            await Game(start)
+        } with {
+            val e = await <:g.newgame || :g.loadgame || :g.playdemo || :title.start>
+            if e == "title.start" => nil => e
+        }
+    }
+}
