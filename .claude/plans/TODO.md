@@ -7,7 +7,7 @@ is left open.
 
 The numbers do not change. Numbers that are missing were settled.
 
-Last update: 2026-11-14.
+Last update: 2026-11-16.
 
 ## A. Decisions waiting for an answer
 
@@ -16,7 +16,6 @@ Each has the option recommended by this session.
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
 | 17 | The license of the repository. `LICENSE` is MIT, from the creation of the repository; `engine/` is GPL-2, and a program built with it is under the GPL-2. MIT is compatible, so nothing is wrong today | Keep MIT for the files outside `engine/`, as the readme says; or change `LICENSE` to GPL-2, to have one license | Not asked yet |
-| 18 | The finale has no test: it needs the end of E1M8 (two barons). A scripted run with `iddqd` and an autopilot, as the one of `tst/level`, should reach it | Write it at D4, when the finale is ported | Not asked yet |
 | 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | To decide when D2 to D5 are done | Not decided now, by the author |
 
 ## B. Work known and not done
@@ -24,8 +23,7 @@ Each has the option recommended by this session.
 | # | Work | Note |
 |---|------|------|
 | 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
-| 9 | D4: the finale | Next. See A18 |
-| 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | |
+| 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | Next |
 | 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
@@ -34,12 +32,14 @@ Each has the option recommended by this session.
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
 | 36 | A possibility for after the faithful port, to take no action on until the author says: if the game is saved only at checkpoints, the state in the middle of a level never has to be data, so the table of states could go, and monsters, doors, and weapons could be tasks. It costs the saved games of the original and a save at any point; each task must be checked against the demos again | From the session `snapshots` (`session_011eECoiWKpJwsuKH43TLunQ`), 2026-11-14, with the words of the author as it quoted them: "se colocarmos essa restrição após o porte fiel, podemos eliminar a tabela de estados e usar Atmos mais vezes". Not checked in its transcript. Related: items 64 and 45 of the TODO of `ia-atmos/lang` |
 | 37 | Not verified in the intermission: the map of the episodes 2 and 3 (animations `:level`), Doom 2, frags above zero, more than one player, a second intermission in one game | Needs the registered or the Doom 2 WAD, which the session does not have; the second intermission needs a route through E1M2 |
+| 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
 
 | # | What | Note |
 |---|------|------|
+| 43 | D4 is done (2026-11-16): the finale is in `fi.atm`; eleven tests are identical. The test of the finale ends E1M8 by the timer of a deathmatch, and not by playing (it was item 18) | Reported to the author in this session |
 | 41 | The Atmos code follows the new rules of `pin` (compiler `ia-atmos/lang@09a7885`, 2026-11-15): 8 declarations changed to `pin`, and two rewrites in `wi_init`; the ten tests are identical. Reported to the compiler session | Asked by the compiler session, with the approval of the author there |
 | 38 | D3 is done (2026-11-14): the intermission is in `wi.atm` (one player, deathmatch, cooperative, and the map); ten tests are identical; `doc/study.md` has the first comparison | Reported to the author in this session |
 | 39 | In `wi.atm`, the graphics are asked to the WAD by name at each draw, and not loaded once as in C: 150 lines less, and nothing changes on screen | Decided by this session |
@@ -86,3 +86,4 @@ On 2026-11-14:
 - 7: D2 is done.
 - 31: the compiler session answered the two doubts on the manual (see B35).
 - 8: D3 is done.
+- 9 and 18: D4 is done, with its test.
