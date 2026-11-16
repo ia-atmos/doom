@@ -200,3 +200,109 @@ await FI_Art(episode)
 
 The shareware WAD has only the episode 1. The cast, the scroll, and the
 skip were ported by reading the C, and have never run.
+
+## The flow of the game
+
+| | C | Atmos (`flow.atm`) |
+|---|---|---|
+| Lines | 125: the "demo loop" of `d_main.c` (88), and the dispatch of `G_Ticker` (37) | 186, of which 56 are C in the `:prelude` |
+| Variables | `demosequence`, `pagetic`, `pagename` | none |
+
+### The title
+
+In C, a counter `demosequence` goes from 0 to 5, and a `switch` on it
+says what each step is; `pagetic` counts the tics of a page, and
+`advancedemo` asks for the next step:
+
+```c
+demosequence = (demosequence+1)%6;
+switch (demosequence) {
+  case 0: pagetic = 170; gamestate = GS_DEMOSCREEN;
+          pagename = "TITLEPIC"; S_StartMusic(mus_intro); break;
+  case 1: G_DeferedPlayDemo("demo1"); break;
+  case 2: pagetic = 200; gamestate = GS_DEMOSCREEN;
+          pagename = "CREDIT"; break;
+  case 3: G_DeferedPlayDemo("demo2"); break;
+  ...
+}
+```
+
+In Atmos, the cycle is the text, in order:
+
+```
+loop {
+    watching :title.next { title_music() ; await Page("TITLEPIC", 170) }
+    watching :title.next { await Demo("demo1") }
+    watching :title.next { await Page("CREDIT", 200) }
+    watching :title.next { await Demo("demo2") }
+    ...
+}
+```
+
+- `demosequence` and `pagetic` are gone: the step is where the task
+  waits, and the time of a page is `await((tics + 1), :page.tic)`.
+- `D_StartTitle` set `demosequence = -1` to start again. In Atmos the
+  task `Title` is aborted and spawned again (`watching :title.start`).
+- What reads worse: each step is wrapped in a `watching :title.next`,
+  the same five times. The step does not end by itself: a page asks for
+  the next one and goes on showing until the engine answers, one tic
+  later, and a demo ends inside the engine. The `watching` is the
+  answer, and the repetition is its price.
+
+### The game
+
+In C, the dispatch was a `switch` on `gameaction`, with one case per
+action, and no order between them. In Atmos, the order is visible:
+
+```
+task Game (start) {
+    <G_DoNewGame, G_DoLoadGame, or G_DoPlayDemo>
+    loop {
+        await :g.completed          ;; the level ends
+        `G_DoCompleted();`         ;; the intermission, or the victory
+        if <victory> {
+            await :g.victory
+            `F_StartFinale();`
+        }
+        await :g.worlddone          ;; the next level
+        `G_DoWorldDone();`
+    }
+}
+```
+
+- A level comes, then its end, then the intermission or the finale,
+  then the next level. In C, this order is spread over the places that
+  set `gameaction`: `G_ExitLevel`, `G_DoCompleted`, `G_WorldDone`.
+- What may come at any time is apart: a death that loads the level
+  again, a save, a screenshot, each a `loop on` of its own.
+- A new game, a saved game, or a demo aborts the `Game` that is on and
+  starts another; the title aborts it too.
+
+### What reads worse, and what did not move
+
+- **The decisions stayed in C.** Which level is next, and whether it
+  is the victory, are in `G_DoCompleted`, which stays in `g_game.c`: it
+  reads tables of par times that are `static` there. So the Atmos `Game`
+  asks the engine after the fact (`` `:boolean gameaction ==
+  ga_victory` ``).
+- **An action with no task is an error at run time.** In C, a `switch`
+  ignores an action that it does not know. In Atmos, an event that no
+  task awaits is lost, and the loop of the engine would ask for it
+  forever, so `G_DoActions` checks that the action was done.
+- **The program must start before its loop.** `D_DoomMain` starts the
+  title, and runs a first tic, before it calls the program. The program
+  now starts at the first call from the engine, whatever it is, and it
+  must tell a game started by the engine before it (`-warp`) from no
+  game at all, which it does by `viewactive`.
+
+### What was verified, and what was not
+
+| Verified by a test, identical to C | Not verified |
+|---|---|
+| The cycle of the title, with its three demos, and back to the title (`title`) | The cycle of the Ultimate Doom, with `demo4`, and of Doom 2 |
+| A new game by the menu (`newgame`), and a game ended by the menu (`endgame`) | A new game by a cheat (`idclev`) |
+| A level, its intermission, and the next level (`level`, `skip`, `dm`, `net`) | The secret exit |
+| The victory, and the finale (`finale`) | Doom 2: the finale between levels, and the next level after it |
+| A save and a load (`save`) | A screenshot (it writes a file) |
+| A death that loads the level again (`death`) | |
+| A game started before the program (`dm`, `net`, `finale`, with `-warp`) | |

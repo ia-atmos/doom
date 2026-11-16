@@ -12,27 +12,44 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-One file is changed, and three files left the build.
+Two files are changed, and three files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
 | `src/doom/d_main.c`, `D_DoomLoop` | The loop `while (1) { D_RunFrame(); }` becomes one call, `D_DoomFrames();` | The loop of frames is control: it goes to the program |
 | `src/doom/d_main.c`, the prototypes | `void D_DoomFrames (void);` | The declaration of the call above |
-| `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe`. The function is in `c/main.c` as it was |
+| `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe` |
+| `src/doom/d_main.c`, the "demo loop" | Removed (138 lines): `demosequence`, `pagetic`, `pagename`, and `D_PageTicker`, `D_PageDrawer`, `D_AdvanceDemo`, `D_DoAdvanceDemo`, `D_StartTitle` | The cycle of the title is control: the task `Title` of `flow.atm` |
+| `src/doom/g_game.c`, `G_Ticker` | The loop that does the actions of `gameaction` (36 lines) becomes one call, `G_DoActions ();`, with its prototype | What comes after what is control: the task `Game` of `flow.atm` |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 | `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |
+
+Every function removed from the engine is in `c/main.c` as it was, for
+the engine all in C.
+
+`g_game.c` is the file the plan feared: it is the flow, the commands of
+the player, the demos, and the saves. Only the dispatch left it. The
+functions that do each action (`G_DoNewGame`, `G_DoLoadGame`,
+`G_DoSaveGame`, `G_DoPlayDemo`, `G_DoCompleted`, `G_DoWorldDone`,
+`G_DoLoadLevel`) stay, and the program calls them. `G_DoCompleted` also
+decides the next level and the victory; it stays because it reads three
+tables of par times that are `static` in the file.
 
 ## Who runs
 
 1. The `main` is the one of the engine (`i_main.c`), which calls
    `D_DoomMain`. The engine reads its arguments, loads the WAD, and
    starts all its parts, as before.
-2. `D_DoomMain` ends in `D_DoomLoop`, which opens the screen and then
-   calls `D_DoomFrames`.
-3. `D_DoomFrames` is in the `:prelude` of `doom.atm`. It is the
-   environment of the program: it starts the runtime of Atmos, runs the
-   main chunk, and then emits `:frame` forever.
+2. The program starts at the first call that the engine makes to it
+   (`doom_start`, in `doom.atm`): the runtime of Atmos, and the main
+   chunk up to its first await. This call comes from `D_DoomMain`
+   (`D_StartTitle`), or from the first tic that `D_DoomLoop` runs
+   before the loop of frames (`G_DoActions`), or else from
+   `D_DoomFrames`.
+3. `D_DoomMain` ends in `D_DoomLoop`, which opens the screen and then
+   calls `D_DoomFrames`, in the `:prelude` of `doom.atm`. It is the
+   environment of the program: it emits `:frame` forever.
 4. The main chunk reacts to each `:frame`: it calls the engine for the
    input, the tics that are due, the sound, and the drawing.
 5. The game ends inside the engine: `I_Quit` exits the process.
@@ -71,6 +88,8 @@ From the program to the engine, as native calls:
 | `G_WorldDone()` | The intermission is over: the next level may start |
 | `M_Random()` | The first frame of each animation of the map |
 | `wipegamestate = -1`, `gameaction = ga_worlddone`, `gamestate`, `viewactive`, `automapactive` | Variables of the engine that the finale writes: a wipe is forced, the next level is asked |
+| `G_DoNewGame()`, `G_DoLoadGame()`, `G_DoPlayDemo()`, `G_DeferedPlayDemo(...)`, `G_DoCompleted()`, `G_DoWorldDone()`, `G_DoLoadLevel()`, `G_DoSaveGame()`, `V_ScreenShot(...)`, `S_StartMusic(...)` | The flow does each action with the function of the engine |
+| `gameaction`, `advancedemo`, `usergame`, `paused`, `gamestate`, `viewactive` | Variables of the engine that the flow reads and writes, as the C did |
 | `states[]`, `mobjinfo[]`, `sprites[]` | The table of states, read by the cast of the finale |
 | `gameepisode`, `gamemap`, `gamemission` | What the finale reads to choose its screens |
 | `WI_WBS->...`, `players[]`, `playeringame[]`, `gamemode`, `gameversion`, `deathmatch`, `netgame` | What the intermission reads: the statistics of the level, the buttons of the players, the kind of game |
@@ -85,6 +104,11 @@ From the engine to the program:
 | `WI_Ticker()` | A tic of the game in the intermission (`G_Ticker`). Emits `:wi.tic` |
 | `WI_Drawer()` | The intermission must be drawn (`D_Display`). Emits `:wi.draw` |
 | `WI_End()` | The game left the intermission (`G_Ticker`). Emits `:wi.end` |
+| `G_DoActions()` | The start of each tic (`G_Ticker`). For each action in `gameaction`, emits its event (`:g.newgame`, `:g.loadgame`, `:g.playdemo`, `:g.completed`, `:g.victory`, `:g.worlddone`, `:g.loadlevel`, `:g.savegame`, `:g.screenshot`). An action that no task does is an error |
+| `D_StartTitle()` | The title starts (`D_DoomMain`, the menu that ends a game). Emits `:title.start` |
+| `D_DoAdvanceDemo()` | The next step of the title (`RunTic`, when `advancedemo` is set). Emits `:title.next` |
+| `D_PageTicker()`, `D_PageDrawer()` | A tic, and a frame, of a page of the title. Emit `:page.tic` and `:page.draw` |
+| `D_AdvanceDemo()` | A demo ended (`G_CheckDemoStatus`). Sets `advancedemo`, as before; emits nothing |
 | `F_StartFinale()` | An episode ended (`G_Ticker`, `G_DoCompleted`). Sets the state of the game, chooses the text, and emits `:fi.start` |
 | `F_Ticker()` | A tic of the game in the finale (`G_Ticker`). Emits `:fi.tic` |
 | `F_Drawer()` | The finale must be drawn (`D_Display`). Emits `:fi.draw` |
