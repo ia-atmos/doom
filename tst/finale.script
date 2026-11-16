@@ -1,0 +1,11 @@
+# The finale of the episode 1: a deathmatch of one player on E1M8, which
+# the timer ends after one minute. The text is typed, and then the last
+# screen comes, after a wipe.
+2150 shot text1.ppm
+2400 shot text2.ppm
+3000 shot text3.ppm
+3500 press space        # a key does nothing in this finale
+3600 shot text4.ppm
+3760 shot wipe.ppm
+3900 shot art.ppm
+4000 quit
