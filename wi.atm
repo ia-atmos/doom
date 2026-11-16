@@ -51,11 +51,6 @@ void WI_Ticker (void) { doom_emit("wi.tic");  }
 void WI_Drawer (void) { doom_emit("wi.draw"); }
 void WI_End    (void) { doom_emit("wi.end");  }
 
-// A graphic of the WAD, by its name.
-static patch_t* wi_patch (const char* name) {
-    return W_CacheLumpName(DEH_String(name), PU_CACHE);
-}
-
 // A player pressed fire or use in this tic (and was not holding it).
 static int wi_accel (void) {
     int ret = 0;
@@ -87,35 +82,10 @@ static int wi_accel (void) {
 
 ;; DRAWING
 
-func wi_draw (x, y, name) {
-    `V_DrawPatch(a_dbl($x), a_dbl($y), wi_patch(A_STR_OF($name)->s));`
-}
-
-func wi_width (name) {
-    `:number SHORT(wi_patch(A_STR_OF($name)->s)->width)`
-}
-
-func wi_height (name) {
-    `:number SHORT(wi_patch(A_STR_OF($name)->s)->height)`
-}
-
-;; The offsets of a graphic to its origin.
-func wi_left (name) {
-    `:number SHORT(wi_patch(A_STR_OF($name)->s)->leftoffset)`
-}
-
-func wi_top (name) {
-    `:number SHORT(wi_patch(A_STR_OF($name)->s)->topoffset)`
-}
-
-func wi_draw_center (y, name) {
-    wi_draw((320 - wi_width(name)) // 2, y, name)
-}
-
 ;; Draws a number that ends at `x`, with at least `digits` digits, or as
 ;; many as it needs if `digits` is negative. Returns where it starts.
 func wi_draw_num (x, y, n, digits) {
-    val w = wi_width("WINUM0")
+    val w = patch_width("WINUM0")
     var v = math.abs(n)
     var d = digits
     if d < 0 {
@@ -134,12 +104,12 @@ func wi_draw_num (x, y, n, digits) {
         var cur = x
         loop _ in d {
             set cur -= w
-            wi_draw(cur, y, "WINUM" ++ (v % 10))
+            patch_draw(cur, y, "WINUM" ++ (v % 10))
             set v = v // 10
         }
         if n < 0 {
             set cur -= 8
-            wi_draw(cur, y, "WIMINUS")
+            patch_draw(cur, y, "WIMINUS")
         }
         cur
     }
@@ -147,7 +117,7 @@ func wi_draw_num (x, y, n, digits) {
 
 func wi_draw_percent (x, y, p) {
     if p >= 0 {
-        wi_draw(x, y, "WIPCNT")
+        patch_draw(x, y, "WIPCNT")
         wi_draw_num(x, y, p, -1)
     }
 }
@@ -161,15 +131,15 @@ func wi_draw_time (x, y, t) {
             var div = 1
             loop {
                 val n = (t // div) % 60
-                set cur = wi_draw_num(cur, y, n, 2) - wi_width("WICOLON")
+                set cur = wi_draw_num(cur, y, n, 2) - patch_width("WICOLON")
                 set div *= 60
                 if (div == 60) || ((t // div) != 0) {
-                    wi_draw(cur, y, "WICOLON")
+                    patch_draw(cur, y, "WICOLON")
                 }
                 while (t // div) != 0
             }
         } else {
-            wi_draw(x - wi_width("WISUCKS"), y, "WISUCKS")
+            patch_draw(x - patch_width("WISUCKS"), y, "WISUCKS")
         }
     }
 }
@@ -335,7 +305,7 @@ task WI_Anim (i, a, stats) {
         val j = if (WI.epsd == 1) && (i == 8) => 4 => i
         loop on :wi.draw {
             if frame >= 0 {
-                wi_draw(x, y, string.format("WIA%d%02d%02d", WI.epsd, j, frame))
+                patch_draw(x, y, string.format("WIA%d%02d%02d", WI.epsd, j, frame))
             }
         }
     }
@@ -356,11 +326,11 @@ func wi_anims (as, stats) {
 func wi_draw_finished () {
     if (!WI.commercial) || (WI.last < 32) {
         val name = wi_level(WI.last)
-        wi_draw_center(2, name)
-        wi_draw_center(2 + ((5 * wi_height(name)) // 4), "WIF")
+        patch_center(2, name)
+        patch_center(2 + ((5 * patch_height(name)) // 4), "WIF")
     } else {
         if WI.last == 32 {
-            wi_draw_center(2, "WIF")
+            patch_center(2, "WIF")
         } else {
             `I_Error("Bad V_DrawPatch");`
         }
@@ -388,21 +358,21 @@ task WI_Stats () {
     wi_anims(as, true)
 
     spawn {
-        val lh = (3 * wi_height("WINUM0")) // 2    ;; the height of a line
+        val lh = (3 * patch_height("WINUM0")) // 2    ;; the height of a line
         loop on :wi.draw {
             wi_draw_finished()
 
-            wi_draw(50, 50, "WIOSTK")
+            patch_draw(50, 50, "WIOSTK")
             wi_draw_percent(320-50, 50, cnt.kills)
-            wi_draw(50, 50+lh, "WIOSTI")
+            patch_draw(50, 50+lh, "WIOSTI")
             wi_draw_percent(320-50, 50+lh, cnt.items)
-            wi_draw(50, 50+(2*lh), "WISCRT2")
+            patch_draw(50, 50+(2*lh), "WISCRT2")
             wi_draw_percent(320-50, 50+(2*lh), cnt.secret)
 
-            wi_draw(16, 200-32, "WITIME")
+            patch_draw(16, 200-32, "WITIME")
             wi_draw_time(160-16, 200-32, cnt.time)
             if WI.epsd < 3 {
-                wi_draw(160+16, 200-32, "WIPAR")
+                patch_draw(160+16, 200-32, "WIPAR")
                 wi_draw_time(320-16, 200-32, cnt.par)
             }
         }
@@ -490,25 +460,25 @@ task WI_Stats_Net () {
     spawn {
         ;; the items are "objects" in the WADs that have the graphic
         val items = if `:boolean W_CheckNumForName(DEH_String("WIOBJ")) >= 0` => "WIOBJ" => "WIOSTI"
-        val x0 = 32 + (wi_width("STFST01") // 2) + (if frags => 0 => 32)
-        val pw = wi_width("WIPCNT")
+        val x0 = 32 + (patch_width("STFST01") // 2) + (if frags => 0 => 32)
+        val pw = patch_width("WIPCNT")
         loop on :wi.draw {
             wi_draw_finished()
 
-            wi_draw(x0 +     64 - wi_width("WIOSTK"), 50, "WIOSTK")
-            wi_draw(x0 + (2*64) - wi_width(items),    50, items)
-            wi_draw(x0 + (3*64) - wi_width("WIOSTS"), 50, "WIOSTS")
+            patch_draw(x0 +     64 - patch_width("WIOSTK"), 50, "WIOSTK")
+            patch_draw(x0 + (2*64) - patch_width(items),    50, items)
+            patch_draw(x0 + (3*64) - patch_width("WIOSTS"), 50, "WIOSTS")
             if frags {
-                wi_draw(x0 + (4*64) - wi_width("WIFRGS"), 50, "WIFRGS")
+                patch_draw(x0 + (4*64) - patch_width("WIFRGS"), 50, "WIFRGS")
             }
 
-            var y = 50 + wi_height("WIOSTK")
+            var y = 50 + patch_height("WIOSTK")
             loop _, p in WI.players {
                 val cnt  = cnts@(p.i)
                 val face = "STPB" ++ p.i
-                wi_draw(x0 - wi_width(face), y, face)
+                patch_draw(x0 - patch_width(face), y, face)
                 if p.i == WI.me {
-                    wi_draw(x0 - wi_width(face), y, "STFST01")
+                    patch_draw(x0 - patch_width(face), y, "STFST01")
                 }
                 wi_draw_percent(x0 +     64 - pw, y+10, cnt.kills)
                 wi_draw_percent(x0 + (2*64) - pw, y+10, cnt.items)
@@ -570,24 +540,24 @@ task WI_Stats_Deathmatch () {
     wi_anims(as, true)
 
     spawn {
-        val w = wi_width("WINUM0")
+        val w = patch_width("WINUM0")
         loop on :wi.draw {
             wi_draw_finished()
 
-            wi_draw(269 - (wi_width("WIMSTT") // 2), 68-33+10, "WIMSTT")
-            wi_draw(10, 100, "WIKILRS")
-            wi_draw( 5,  50, "WIVCTMS")
+            patch_draw(269 - (patch_width("WIMSTT") // 2), 68-33+10, "WIMSTT")
+            patch_draw(10, 100, "WIKILRS")
+            patch_draw( 5,  50, "WIVCTMS")
 
             ;; the faces: the killers in a column, the victims in a row
             loop _, p in WI.players {
                 val face = "STPB" ++ p.i
-                val x = (42 + 40 + (40 * p.i)) - (wi_width(face) // 2)
+                val x = (42 + 40 + (40 * p.i)) - (patch_width(face) // 2)
                 val y = 68 + (33 * p.i)
-                wi_draw(x, 68-33, face)
-                wi_draw(42 - (wi_width(face) // 2), y, face)
+                patch_draw(x, 68-33, face)
+                patch_draw(42 - (patch_width(face) // 2), y, face)
                 if p.i == WI.me {
-                    wi_draw(x, 68-33, "STFDEAD0")
-                    wi_draw(42 - (wi_width(face) // 2), y, "STFST01")
+                    patch_draw(x, 68-33, "STFDEAD0")
+                    patch_draw(42 - (patch_width(face) // 2), y, "STFST01")
                 }
             }
 
@@ -651,12 +621,12 @@ task WI_Stats_Deathmatch () {
 func wi_draw_place (n, names) {
     val place = WI_PLACES@(WI.epsd)@(n)
     val ok = loop _, name in names {
-        val left = place@0 - wi_left(name)
-        val top  = place@1 - wi_top(name)
-        val right  = left + wi_width(name)
-        val bottom = top  + wi_height(name)
+        val left = place@0 - patch_left(name)
+        val top  = place@1 - patch_top(name)
+        val right  = left + patch_width(name)
+        val bottom = top  + patch_height(name)
         if (left >= 0) && (right < 320) && (top >= 0) && (bottom < 200) {
-            wi_draw(place@0, place@1, name)
+            patch_draw(place@0, place@1, name)
             break true
         }
     }
@@ -690,9 +660,9 @@ task WI_Map () {
             }
             ;; "entering <level>"
             if (!WI.commercial) || (WI.next != 30) {
-                wi_draw_center(2, "WIENTER")
+                patch_center(2, "WIENTER")
                 val name = wi_level(WI.next)
-                wi_draw_center(2 + ((5 * wi_height(name)) // 4), name)
+                patch_center(2 + ((5 * patch_height(name)) // 4), name)
             }
         }
     }
@@ -756,7 +726,7 @@ task WI_Intermission () {
             "WIMAP" ++ WI.epsd
         }
         loop on :wi.draw {
-            wi_draw(0, 0, name)
+            patch_draw(0, 0, name)
         }
     }
 

@@ -1,0 +1,67 @@
+;; GRAPHICS
+;;
+;; The graphics of the WAD ("patches"), by their names. The engine
+;; draws them into the screen (V_DrawPatch).
+
+```:prelude
+#include "deh_main.h"
+#include "i_swap.h"
+#include "v_video.h"
+#include "w_wad.h"
+#include "z_zone.h"
+
+static patch_t* patch_get (const char* name) {
+    return W_CacheLumpName(DEH_String(name), PU_CACHE);
+}
+```
+
+func patch_draw (x, y, name) {
+    `V_DrawPatch(a_dbl($x), a_dbl($y), patch_get(A_STR_OF($name)->s));`
+}
+
+func patch_width (name) {
+    `:number SHORT(patch_get(A_STR_OF($name)->s)->width)`
+}
+
+func patch_height (name) {
+    `:number SHORT(patch_get(A_STR_OF($name)->s)->height)`
+}
+
+;; The offsets of a graphic to its origin.
+func patch_left (name) {
+    `:number SHORT(patch_get(A_STR_OF($name)->s)->leftoffset)`
+}
+
+func patch_top (name) {
+    `:number SHORT(patch_get(A_STR_OF($name)->s)->topoffset)`
+}
+
+;; Draws a graphic in the middle of the screen, at the row `y`.
+func patch_center (y, name) {
+    patch_draw((320 - patch_width(name)) // 2, y, name)
+}
+
+;; THE FONT OF THE MESSAGES
+;;
+;; One graphic per character, from '!' to '_', with no small letters.
+;; Any other character is a space, 4 pixels wide.
+
+;; The graphic of the character with the code `c`, or `nil`.
+func font_patch (c) {
+    val up = if (c >= 97) && (c <= 122) => c-32 => c
+    if (up >= 33) && (up <= 95) {
+        string.format("STCFN%03d", up)
+    } else {
+        nil
+    }
+}
+
+;; The width of a text in one line.
+func font_width (text) {
+    var w = 0
+    loop i in #text {
+        val name = font_patch(string.byte(text, i))
+        set w += if name => patch_width(name) => 4
+    }
+    w
+}
