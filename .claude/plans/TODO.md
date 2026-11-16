@@ -15,7 +15,6 @@ Each has the option recommended by this session.
 
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
-| 17 | The license of the repository. `LICENSE` is MIT, from the creation of the repository; `engine/` is GPL-2, and a program built with it is under the GPL-2. MIT is compatible, so nothing is wrong today | Keep MIT for the files outside `engine/`, as the readme says; or change `LICENSE` to GPL-2, to have one license | Not asked yet |
 | 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | To decide when D2 to D5 are done | Not decided now, by the author |
 
 ## B. Work known and not done
@@ -87,3 +86,10 @@ On 2026-11-14:
 - 31: the compiler session answered the two doubts on the manual (see B35).
 - 8: D3 is done.
 - 9 and 18: D4 is done, with its test.
+
+On 2026-11-16, the author said to follow the recommendations of this
+session:
+
+- 17: the license stays as it is. `LICENSE` (MIT) is for the files
+  outside `engine/`, which is GPL-2; a program built with the engine is
+  under the GPL-2. The readme says so.
