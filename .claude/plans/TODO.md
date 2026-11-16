@@ -15,14 +15,13 @@ Each has the option recommended by this session.
 
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
-| 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | To decide when D2 to D5 are done | Not decided now, by the author |
+| 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | The status bar and its face first (the face is a small machine with priorities and timers, the best case left for tasks); then the messages; the menus and the automap last, or not at all (mostly drawing and input) | Asked on 2026-11-16, now that D2 to D5 are done |
 
 ## B. Work known and not done
 
 | # | Work | Note |
 |---|------|------|
 | 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
-| 10 | D5: the flow of the game, with the title cycle, the demos, and save and load | Next |
 | 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
@@ -32,12 +31,16 @@ Each has the option recommended by this session.
 | 36 | A possibility for after the faithful port, to take no action on until the author says: if the game is saved only at checkpoints, the state in the middle of a level never has to be data, so the table of states could go, and monsters, doors, and weapons could be tasks. It costs the saved games of the original and a save at any point; each task must be checked against the demos again | From the session `snapshots` (`session_011eECoiWKpJwsuKH43TLunQ`), 2026-11-14, with the words of the author as it quoted them: "se colocarmos essa restrição após o porte fiel, podemos eliminar a tabela de estados e usar Atmos mais vezes". Not checked in its transcript. Related: items 64 and 45 of the TODO of `ia-atmos/lang` |
 | 37 | Not verified in the intermission: the map of the episodes 2 and 3 (animations `:level`), Doom 2, frags above zero, more than one player, a second intermission in one game | Needs the registered or the Doom 2 WAD, which the session does not have; the second intermission needs a route through E1M2 |
 | 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
+| 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, a new game by `idclev`, the secret exit, the finale between the levels of Doom 2, a screenshot | The first and the fourth need other WADs |
+| 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
 
 | # | What | Note |
 |---|------|------|
+| 46 | D5 is done (2026-11-16): the flow is in `flow.atm` (the title, the demos, the levels, as tasks; the actions of `gameaction` as events); thirteen tests are identical | Reported to the author in this session |
+| 47 | The program starts at the first call from the engine (`doom_start`), which comes before `D_DoomFrames`, and tells a game started by `-warp` by `viewactive` | Decided by this session |
 | 43 | D4 is done (2026-11-16): the finale is in `fi.atm`; eleven tests are identical. The test of the finale ends E1M8 by the timer of a deathmatch, and not by playing (it was item 18) | Reported to the author in this session |
 | 41 | The Atmos code follows the new rules of `pin` (compiler `ia-atmos/lang@09a7885`, 2026-11-15): 8 declarations changed to `pin`, and two rewrites in `wi_init`; the ten tests are identical. Reported to the compiler session | Asked by the compiler session, with the approval of the author there |
 | 38 | D3 is done (2026-11-14): the intermission is in `wi.atm` (one player, deathmatch, cooperative, and the map); ten tests are identical; `doc/study.md` has the first comparison | Reported to the author in this session |
@@ -93,3 +96,4 @@ session:
 - 17: the license stays as it is. `LICENSE` (MIT) is for the files
   outside `engine/`, which is GPL-2; a program built with the engine is
   under the GPL-2. The readme says so.
+- 10: D5 is done.
