@@ -143,9 +143,9 @@ and were not ported.
 
 | | C (`f_finale.c`) | Atmos (`fi.atm`) |
 |---|---|---|
-| Lines | 547 | 413, of which 190 are C in the `:prelude` |
+| Lines | 528 | 445, of which 183 are C in the `:prelude` |
 
-Half of the Atmos file is C: the table of the texts, the order of the
+Almost half of the Atmos file is C: the table of the texts, the order of the
 cast with its sounds, and the copies of pixels (a tiled background, the
 scroll of two screens, a sprite of the table of states). They are data
 and drawing, with no state.
