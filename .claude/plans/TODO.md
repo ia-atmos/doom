@@ -33,7 +33,6 @@ Each has the option recommended by this session.
 | 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
 | 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, a new game by `idclev`, the secret exit, the finale between the levels of Doom 2, a screenshot | The first and the fourth need other WADs |
 | 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
-| 48 | The rules of `pin` of 2026-11-17 (compiler `5da4b8e`): one fix (`pin frags` given away by a block became `val`), and the state of the intermission is one constructor again (`pin var WI`, `set WI = [...]`), done before the author answered, since the guide of the migration asks to remove such workarounds; the thirteen tests are identical. Reported to the compiler session | Revert `wi.atm` at the commit that says "one constructor again" if the author prefers the fields |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
@@ -43,7 +42,6 @@ Each has the option recommended by this session.
 | 46 | D5 is done (2026-11-16): the flow is in `flow.atm` (the title, the demos, the levels, as tasks; the actions of `gameaction` as events); thirteen tests are identical | Reported to the author in this session |
 | 47 | The program starts at the first call from the engine (`doom_start`), which comes before `D_DoomFrames`, and tells a game started by `-warp` by `viewactive` | Decided by this session |
 | 43 | D4 is done (2026-11-16): the finale is in `fi.atm`; eleven tests are identical. The test of the finale ends E1M8 by the timer of a deathmatch, and not by playing (it was item 18) | Reported to the author in this session |
-| 41 | The Atmos code follows the new rules of `pin` (compiler `ia-atmos/lang@09a7885`, 2026-11-15): 8 declarations changed to `pin`, and two rewrites in `wi_init`; the ten tests are identical. Reported to the compiler session | Asked by the compiler session, with the approval of the author there |
 | 38 | D3 is done (2026-11-14): the intermission is in `wi.atm` (one player, deathmatch, cooperative, and the map); ten tests are identical; `doc/study.md` has the first comparison | Reported to the author in this session |
 | 39 | In `wi.atm`, the graphics are asked to the WAD by name at each draw, and not loaded once as in C: 150 lines less, and nothing changes on screen | Decided by this session |
 | 40 | `ANIM_RANDOM` of `wi_stuff.c` was not ported: no animation of the game is of that kind | Decided by this session |
@@ -98,3 +96,9 @@ session:
   outside `engine/`, which is GPL-2; a program built with the engine is
   under the GPL-2. The readme says so.
 - 10: D5 is done.
+
+On 2026-11-17, through the compiler session: the author approved the
+removal of the workarounds of `pin` (the constructor of `WI` stays),
+and declared the rules of `pin` stable until the next round.
+
+- 41, 48: the two migrations of `pin` are done and acknowledged.
