@@ -198,7 +198,7 @@ pin WI_ANIMS = [
 
 ;; What the engine tells about the level that ended, and the tics since
 ;; the intermission started.
-pin WI = []
+pin var WI = nil
 
 ;; The "you are here" of the map blinks. It is kept from one intermission
 ;; to the next, as in the original: the first frame of a map shows it as
@@ -206,17 +206,19 @@ pin WI = []
 var WI_POINTER = false
 
 func wi_init () {
-    set WI.tics       = 0
-    set WI.commercial = `:boolean gamemode == commercial`
-    set WI.epsd       = `:number WI_WBS->epsd`
-    set WI.last       = `:number WI_WBS->last`
-    set WI.next       = `:number WI_WBS->next`
-    set WI.didsecret  = `:boolean WI_WBS->didsecret`
-    set WI.kills      = `:number (WI_WBS->plyr[WI_WBS->pnum].skills  * 100) / WI_WBS->maxkills`
-    set WI.items      = `:number (WI_WBS->plyr[WI_WBS->pnum].sitems  * 100) / WI_WBS->maxitems`
-    set WI.secret     = `:number (WI_WBS->plyr[WI_WBS->pnum].ssecret * 100) / WI_WBS->maxsecret`
-    set WI.time       = `:number WI_WBS->plyr[WI_WBS->pnum].stime / TICRATE`
-    set WI.par        = `:number WI_WBS->partime / TICRATE`
+    set WI = [
+        tics       = 0,
+        commercial = `:boolean gamemode == commercial`,
+        epsd       = `:number WI_WBS->epsd`,
+        last       = `:number WI_WBS->last`,
+        next       = `:number WI_WBS->next`,
+        didsecret  = `:boolean WI_WBS->didsecret`,
+        kills      = `:number (WI_WBS->plyr[WI_WBS->pnum].skills  * 100) / WI_WBS->maxkills`,
+        items      = `:number (WI_WBS->plyr[WI_WBS->pnum].sitems  * 100) / WI_WBS->maxitems`,
+        secret     = `:number (WI_WBS->plyr[WI_WBS->pnum].ssecret * 100) / WI_WBS->maxsecret`,
+        time       = `:number WI_WBS->plyr[WI_WBS->pnum].stime / TICRATE`,
+        par        = `:number WI_WBS->partime / TICRATE`,
+    ]
     ;; the map of an episode, with its places and animations
     set WI.map = (!WI.commercial) && (WI.epsd <= 2)
 
