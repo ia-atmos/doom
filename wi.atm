@@ -228,7 +228,7 @@ func wi_init () {
     loop i in 4 {
         if `:boolean playeringame[(int)a_dbl($i)]` {
             set WI.players@(#WI.players) = do {
-                pin frags = []
+                val frags = []
                 var total = 0
                 loop j in 4 {
                     val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
