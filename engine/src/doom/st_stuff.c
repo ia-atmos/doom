@@ -199,7 +199,7 @@
 pixel_t			*st_backing_screen;
 	    
 // main player in game
-static player_t*	plyr; 
+player_t*	plyr; 
 
 // ST_Start() has just been called
 static boolean		st_firsttime;
@@ -295,22 +295,22 @@ static st_number_t	w_maxammo[4];
 static int	st_fragscount;
 
 // used to use appopriately pained face
-static int	st_oldhealth = -1;
+int	st_oldhealth = -1;
 
 // used for evil grin
-static boolean	oldweaponsowned[NUMWEAPONS]; 
+boolean	oldweaponsowned[NUMWEAPONS]; 
 
  // count until face changes
-static int	st_facecount = 0;
+int	st_facecount = 0;
 
 // current face index, used by w_faces
-static int	st_faceindex = 0;
+int	st_faceindex = 0;
 
 // holds key-type for each key box on bar
 static int	keyboxes[3]; 
 
 // a random number per tick
-static int	st_randomnumber;  
+int	st_randomnumber;  
 
 cheatseq_t cheat_mus = CHEAT("idmus", 2);
 cheatseq_t cheat_god = CHEAT("iddqd", 0);
@@ -609,200 +609,7 @@ ST_Responder (event_t* ev)
 
 
 
-int ST_calcPainOffset(void)
-{
-    int		health;
-    static int	lastcalc;
-    static int	oldhealth = -1;
-    
-    health = plyr->health > 100 ? 100 : plyr->health;
-
-    if (health != oldhealth)
-    {
-	lastcalc = ST_FACESTRIDE * (((100 - health) * ST_NUMPAINFACES) / 101);
-	oldhealth = health;
-    }
-    return lastcalc;
-}
-
-
-//
-// This is a not-very-pretty routine which handles
-//  the face states and their timing.
-// the precedence of expressions is:
-//  dead > evil grin > turned head > straight ahead
-//
-void ST_updateFaceWidget(void)
-{
-    int		i;
-    angle_t	badguyangle;
-    angle_t	diffang;
-    static int	lastattackdown = -1;
-    static int	priority = 0;
-    boolean	doevilgrin;
-
-    if (priority < 10)
-    {
-	// dead
-	if (!plyr->health)
-	{
-	    priority = 9;
-	    st_faceindex = ST_DEADFACE;
-	    st_facecount = 1;
-	}
-    }
-
-    if (priority < 9)
-    {
-	if (plyr->bonuscount)
-	{
-	    // picking up bonus
-	    doevilgrin = false;
-
-	    for (i=0;i<NUMWEAPONS;i++)
-	    {
-		if (oldweaponsowned[i] != plyr->weaponowned[i])
-		{
-		    doevilgrin = true;
-		    oldweaponsowned[i] = plyr->weaponowned[i];
-		}
-	    }
-	    if (doevilgrin) 
-	    {
-		// evil grin if just picked up weapon
-		priority = 8;
-		st_facecount = ST_EVILGRINCOUNT;
-		st_faceindex = ST_calcPainOffset() + ST_EVILGRINOFFSET;
-	    }
-	}
-
-    }
-  
-    if (priority < 8)
-    {
-	if (plyr->damagecount
-	    && plyr->attacker
-	    && plyr->attacker != plyr->mo)
-	{
-	    // being attacked
-	    priority = 7;
-	    
-	    if (plyr->health - st_oldhealth > ST_MUCHPAIN)
-	    {
-		st_facecount = ST_TURNCOUNT;
-		st_faceindex = ST_calcPainOffset() + ST_OUCHOFFSET;
-	    }
-	    else
-	    {
-		badguyangle = R_PointToAngle2(plyr->mo->x,
-					      plyr->mo->y,
-					      plyr->attacker->x,
-					      plyr->attacker->y);
-		
-		if (badguyangle > plyr->mo->angle)
-		{
-		    // whether right or left
-		    diffang = badguyangle - plyr->mo->angle;
-		    i = diffang > ANG180; 
-		}
-		else
-		{
-		    // whether left or right
-		    diffang = plyr->mo->angle - badguyangle;
-		    i = diffang <= ANG180; 
-		} // confusing, aint it?
-
-		
-		st_facecount = ST_TURNCOUNT;
-		st_faceindex = ST_calcPainOffset();
-		
-		if (diffang < ANG45)
-		{
-		    // head-on    
-		    st_faceindex += ST_RAMPAGEOFFSET;
-		}
-		else if (i)
-		{
-		    // turn face right
-		    st_faceindex += ST_TURNOFFSET;
-		}
-		else
-		{
-		    // turn face left
-		    st_faceindex += ST_TURNOFFSET+1;
-		}
-	    }
-	}
-    }
-  
-    if (priority < 7)
-    {
-	// getting hurt because of your own damn stupidity
-	if (plyr->damagecount)
-	{
-	    if (plyr->health - st_oldhealth > ST_MUCHPAIN)
-	    {
-		priority = 7;
-		st_facecount = ST_TURNCOUNT;
-		st_faceindex = ST_calcPainOffset() + ST_OUCHOFFSET;
-	    }
-	    else
-	    {
-		priority = 6;
-		st_facecount = ST_TURNCOUNT;
-		st_faceindex = ST_calcPainOffset() + ST_RAMPAGEOFFSET;
-	    }
-
-	}
-
-    }
-  
-    if (priority < 6)
-    {
-	// rapid firing
-	if (plyr->attackdown)
-	{
-	    if (lastattackdown==-1)
-		lastattackdown = ST_RAMPAGEDELAY;
-	    else if (!--lastattackdown)
-	    {
-		priority = 5;
-		st_faceindex = ST_calcPainOffset() + ST_RAMPAGEOFFSET;
-		st_facecount = 1;
-		lastattackdown = 1;
-	    }
-	}
-	else
-	    lastattackdown = -1;
-
-    }
-  
-    if (priority < 5)
-    {
-	// invulnerability
-	if ((plyr->cheats & CF_GODMODE)
-	    || plyr->powers[pw_invulnerability])
-	{
-	    priority = 4;
-
-	    st_faceindex = ST_GODFACE;
-	    st_facecount = 1;
-
-	}
-
-    }
-
-    // look left or look right if the facecount has timed out
-    if (!st_facecount)
-    {
-	st_faceindex = ST_calcPainOffset() + (st_randomnumber % 3);
-	st_facecount = ST_STRAIGHTFACECOUNT;
-	priority = 0;
-    }
-
-    st_facecount--;
-
-}
+void ST_updateFaceWidget(void);
 
 void ST_updateWidgets(void)
 {

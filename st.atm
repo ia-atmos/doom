@@ -1,0 +1,168 @@
+;; THE FACE OF THE STATUS BAR
+;;
+;; The face of the player, in the middle of the status bar: it looks
+;; around, turns to who hurts it, grins at a new weapon, rages when it
+;; fires for long, and shows god mode and death.
+;;
+;; In the engine, it was ST_updateFaceWidget and ST_calcPainOffset, of
+;; engine/src/doom/st_stuff.c. The rest of the status bar stays there:
+;; it draws the face that this program chooses (`st_faceindex`).
+;;
+;; The engine emits:
+;;
+;;      :st.face        once per tic of a level (ST_Ticker)
+
+```:prelude
+#include "doomdef.h"
+#include "doomstat.h"
+#include "d_player.h"
+#include "r_main.h"
+#include "tables.h"
+
+// Variables of engine/src/doom/st_stuff.c.
+extern player_t* plyr;
+extern int st_oldhealth;
+extern boolean oldweaponsowned[NUMWEAPONS];
+extern int st_faceindex;
+extern int st_randomnumber;
+
+// Called by the engine (ST_updateWidgets), once per tic.
+void ST_updateFaceWidget (void) {
+    doom_emit("st.face");
+}
+
+// The player has a weapon that it did not have: the old ones are
+// updated, as the original did when it checked.
+static int st_new_weapon (void) {
+    int ret = 0;
+    for (int i=0; i<NUMWEAPONS; i++) {
+        if (oldweaponsowned[i] != plyr->weaponowned[i]) {
+            ret = 1;
+            oldweaponsowned[i] = plyr->weaponowned[i];
+        }
+    }
+    return ret;
+}
+
+// The player is hurt by another: where the attacker is, as an offset of
+// the faces of a level of pain (7: ahead, 3: to the right, 4: to the
+// left).
+static int st_turn (void) {
+    angle_t diffang;
+    int right;
+    angle_t badguyangle = R_PointToAngle2(plyr->mo->x, plyr->mo->y,
+                                          plyr->attacker->x, plyr->attacker->y);
+    if (badguyangle > plyr->mo->angle) {
+        diffang = badguyangle - plyr->mo->angle;
+        right = diffang > ANG180;
+    } else {
+        diffang = plyr->mo->angle - badguyangle;
+        right = diffang <= ANG180;
+    }
+    if (diffang < ANG45) {
+        return 7;       // ST_RAMPAGEOFFSET
+    } else if (right) {
+        return 3;       // ST_TURNOFFSET
+    } else {
+        return 4;       // ST_TURNOFFSET+1
+    }
+}
+```
+
+;; The faces: 5 levels of pain, of 8 faces each (3 straight, 2 turned,
+;; ouch, evil grin, rampage), and then god mode and death.
+val ST_STRAIGHT = 0
+val ST_OUCH     = 5
+val ST_GRIN     = 6
+val ST_RAMPAGE  = 7
+val ST_GOD      = 40
+val ST_DEAD     = 41
+
+;; The first face of the level of pain of the player.
+func st_pain () {
+    val health = math.min(100, `:number plyr->health`)
+    8 * (((100 - health) * 5) // 101)
+}
+
+;; At each tic, the face of the highest priority that applies replaces
+;; the face on screen, if this one has a lower priority:
+;;
+;;      dead > evil grin > hurt by another > hurt > rage > god mode
+;;
+;; A face lasts its count of tics; then the player looks around, with a
+;; priority of 0. A face whose count ended keeps its priority for the
+;; checks of one more tic, as in the original.
+task Face () {
+    var prio    = 0
+    var count   = 0
+    var rampage = -1                ;; the tics of fire before the rage
+
+    func show (p, face, n) {
+        set prio  = p
+        set count = n
+        `st_faceindex = a_dbl($face);`
+    }
+
+    loop on :st.face {
+        val health  = `:number plyr->health`
+        val damage  = `:number plyr->damagecount`
+        val muchpain = (health - `:number st_oldhealth`) > 20   ;; never, as in the original
+
+        if prio < 10 {
+            if health == 0 {
+                show(9, ST_DEAD, 1)
+            }
+        }
+        if prio < 9 {
+            if `:boolean plyr->bonuscount && st_new_weapon()` {
+                show(8, st_pain() + ST_GRIN, 70)
+            }
+        }
+        if prio < 8 {
+            if `:boolean plyr->damagecount && plyr->attacker && plyr->attacker != plyr->mo` {
+                if muchpain {
+                    show(7, st_pain() + ST_OUCH, 35)
+                } else {
+                    show(7, st_pain() + `:number st_turn()`, 35)
+                }
+            }
+        }
+        if prio < 7 {
+            if damage != 0 {
+                if muchpain {
+                    show(7, st_pain() + ST_OUCH, 35)
+                } else {
+                    show(6, st_pain() + ST_RAMPAGE, 35)
+                }
+            }
+        }
+        if prio < 6 {
+            if `:boolean plyr->attackdown` {
+                if rampage == -1 {
+                    set rampage = 70
+                } else {
+                    set rampage -= 1
+                    if rampage == 0 {
+                        show(5, st_pain() + ST_RAMPAGE, 1)
+                        set rampage = 1
+                    }
+                }
+            } else {
+                set rampage = -1
+            }
+        }
+        if prio < 5 {
+            if `:boolean (plyr->cheats & CF_GODMODE) || plyr->powers[pw_invulnerability]` {
+                show(4, ST_GOD, 1)
+            }
+        }
+
+        ;; looks left, ahead, or right
+        if count == 0 {
+            show(0, st_pain() + ST_STRAIGHT + (`:number st_randomnumber` % 3), 17)
+        }
+        set count -= 1
+    }
+}
+
+spawn Face()

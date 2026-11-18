@@ -28,6 +28,7 @@
 #include "f_wipe.h"
 #include "g_game.h"
 #include "m_menu.h"
+#include "r_main.h"
 
 boolean D_Display (void);
 
@@ -282,4 +283,237 @@ void G_DoActions (void)
 	    break; 
 	} 
     }
+}
+
+// From engine/src/doom/st_stuff.c: the face of the status bar, with the
+// constants and the variables that it uses there.
+
+#define ST_NUMPAINFACES		5
+#define ST_NUMSTRAIGHTFACES	3
+#define ST_NUMTURNFACES		2
+#define ST_NUMSPECIALFACES		3
+
+#define ST_FACESTRIDE \
+          (ST_NUMSTRAIGHTFACES+ST_NUMTURNFACES+ST_NUMSPECIALFACES)
+
+#define ST_NUMEXTRAFACES		2
+
+#define ST_NUMFACES \
+          (ST_FACESTRIDE*ST_NUMPAINFACES+ST_NUMEXTRAFACES)
+
+#define ST_TURNOFFSET		(ST_NUMSTRAIGHTFACES)
+#define ST_OUCHOFFSET		(ST_TURNOFFSET + ST_NUMTURNFACES)
+#define ST_EVILGRINOFFSET		(ST_OUCHOFFSET + 1)
+#define ST_RAMPAGEOFFSET		(ST_EVILGRINOFFSET + 1)
+#define ST_GODFACE			(ST_NUMPAINFACES*ST_FACESTRIDE)
+#define ST_DEADFACE			(ST_GODFACE+1)
+
+#define ST_EVILGRINCOUNT		(2*TICRATE)
+#define ST_STRAIGHTFACECOUNT	(TICRATE/2)
+#define ST_TURNCOUNT		(1*TICRATE)
+#define ST_OUCHCOUNT		(1*TICRATE)
+#define ST_RAMPAGEDELAY		(2*TICRATE)
+
+#define ST_MUCHPAIN			20
+
+extern player_t* plyr;
+extern int st_oldhealth;
+extern boolean oldweaponsowned[NUMWEAPONS];
+extern int st_facecount;
+extern int st_faceindex;
+extern int st_randomnumber;
+
+int ST_calcPainOffset(void)
+{
+    int		health;
+    static int	lastcalc;
+    static int	oldhealth = -1;
+    
+    health = plyr->health > 100 ? 100 : plyr->health;
+
+    if (health != oldhealth)
+    {
+	lastcalc = ST_FACESTRIDE * (((100 - health) * ST_NUMPAINFACES) / 101);
+	oldhealth = health;
+    }
+    return lastcalc;
+}
+
+
+//
+// This is a not-very-pretty routine which handles
+//  the face states and their timing.
+// the precedence of expressions is:
+//  dead > evil grin > turned head > straight ahead
+//
+void ST_updateFaceWidget(void)
+{
+    int		i;
+    angle_t	badguyangle;
+    angle_t	diffang;
+    static int	lastattackdown = -1;
+    static int	priority = 0;
+    boolean	doevilgrin;
+
+    if (priority < 10)
+    {
+	// dead
+	if (!plyr->health)
+	{
+	    priority = 9;
+	    st_faceindex = ST_DEADFACE;
+	    st_facecount = 1;
+	}
+    }
+
+    if (priority < 9)
+    {
+	if (plyr->bonuscount)
+	{
+	    // picking up bonus
+	    doevilgrin = false;
+
+	    for (i=0;i<NUMWEAPONS;i++)
+	    {
+		if (oldweaponsowned[i] != plyr->weaponowned[i])
+		{
+		    doevilgrin = true;
+		    oldweaponsowned[i] = plyr->weaponowned[i];
+		}
+	    }
+	    if (doevilgrin) 
+	    {
+		// evil grin if just picked up weapon
+		priority = 8;
+		st_facecount = ST_EVILGRINCOUNT;
+		st_faceindex = ST_calcPainOffset() + ST_EVILGRINOFFSET;
+	    }
+	}
+
+    }
+  
+    if (priority < 8)
+    {
+	if (plyr->damagecount
+	    && plyr->attacker
+	    && plyr->attacker != plyr->mo)
+	{
+	    // being attacked
+	    priority = 7;
+	    
+	    if (plyr->health - st_oldhealth > ST_MUCHPAIN)
+	    {
+		st_facecount = ST_TURNCOUNT;
+		st_faceindex = ST_calcPainOffset() + ST_OUCHOFFSET;
+	    }
+	    else
+	    {
+		badguyangle = R_PointToAngle2(plyr->mo->x,
+					      plyr->mo->y,
+					      plyr->attacker->x,
+					      plyr->attacker->y);
+		
+		if (badguyangle > plyr->mo->angle)
+		{
+		    // whether right or left
+		    diffang = badguyangle - plyr->mo->angle;
+		    i = diffang > ANG180; 
+		}
+		else
+		{
+		    // whether left or right
+		    diffang = plyr->mo->angle - badguyangle;
+		    i = diffang <= ANG180; 
+		} // confusing, aint it?
+
+		
+		st_facecount = ST_TURNCOUNT;
+		st_faceindex = ST_calcPainOffset();
+		
+		if (diffang < ANG45)
+		{
+		    // head-on    
+		    st_faceindex += ST_RAMPAGEOFFSET;
+		}
+		else if (i)
+		{
+		    // turn face right
+		    st_faceindex += ST_TURNOFFSET;
+		}
+		else
+		{
+		    // turn face left
+		    st_faceindex += ST_TURNOFFSET+1;
+		}
+	    }
+	}
+    }
+  
+    if (priority < 7)
+    {
+	// getting hurt because of your own damn stupidity
+	if (plyr->damagecount)
+	{
+	    if (plyr->health - st_oldhealth > ST_MUCHPAIN)
+	    {
+		priority = 7;
+		st_facecount = ST_TURNCOUNT;
+		st_faceindex = ST_calcPainOffset() + ST_OUCHOFFSET;
+	    }
+	    else
+	    {
+		priority = 6;
+		st_facecount = ST_TURNCOUNT;
+		st_faceindex = ST_calcPainOffset() + ST_RAMPAGEOFFSET;
+	    }
+
+	}
+
+    }
+  
+    if (priority < 6)
+    {
+	// rapid firing
+	if (plyr->attackdown)
+	{
+	    if (lastattackdown==-1)
+		lastattackdown = ST_RAMPAGEDELAY;
+	    else if (!--lastattackdown)
+	    {
+		priority = 5;
+		st_faceindex = ST_calcPainOffset() + ST_RAMPAGEOFFSET;
+		st_facecount = 1;
+		lastattackdown = 1;
+	    }
+	}
+	else
+	    lastattackdown = -1;
+
+    }
+  
+    if (priority < 5)
+    {
+	// invulnerability
+	if ((plyr->cheats & CF_GODMODE)
+	    || plyr->powers[pw_invulnerability])
+	{
+	    priority = 4;
+
+	    st_faceindex = ST_GODFACE;
+	    st_facecount = 1;
+
+	}
+
+    }
+
+    // look left or look right if the facecount has timed out
+    if (!st_facecount)
+    {
+	st_faceindex = ST_calcPainOffset() + (st_randomnumber % 3);
+	st_facecount = ST_STRAIGHTFACECOUNT;
+	priority = 0;
+    }
+
+    st_facecount--;
+
 }
