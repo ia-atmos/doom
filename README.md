@@ -14,8 +14,8 @@ reactive concurrency.
 
 The plan is in [`.claude/plans/261113-doom.md`](.claude/plans/261113-doom.md).
 So far the program in Atmos ([`doom.atm`](doom.atm)) has the loop of
-frames, the screen wipe, the intermission, the finale, and the flow of the
-game (the title, the demos, the levels). The comparison with C is
+frames, the screen wipe, the intermission, the finale, the flow of the
+game (the title, the demos, the levels), and the face of the status bar. The comparison with C is
 in [`doc/study.md`](doc/study.md). The changes to the engine are in
 [`doc/seam.md`](doc/seam.md).
 
@@ -71,7 +71,7 @@ recorded runs, kept for the eye.
 
 | Folder | What |
 |--------|------|
-| `doom.atm`, `patch.atm`, `wipe.atm`, `wi.atm`, `fi.atm`, `flow.atm` | The program in Atmos: the frames, the graphics by name, the screen wipe, the intermission, the finale, the flow of the game |
+| `doom.atm`, `patch.atm`, `wipe.atm`, `wi.atm`, `fi.atm`, `st.atm`, `flow.atm` | The program in Atmos: the frames, the graphics by name, the screen wipe, the intermission, the finale, the face of the status bar, the flow of the game |
 | `engine/` | A copy of Chocolate Doom. Its first commit has nothing changed, so `git diff 8f5ee02 -- engine/` is every change made to the engine |
 | `c/` | What left the engine, in C as it was, for the engine with no Atmos |
 | `cfg/` | `config.h`, which Chocolate Doom generates with CMake |

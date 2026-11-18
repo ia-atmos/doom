@@ -12,7 +12,7 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-Two files are changed, and three files left the build.
+Three files are changed, and three files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
@@ -21,6 +21,7 @@ Two files are changed, and three files left the build.
 | `src/doom/d_main.c`, `D_RunFrame` | The function is removed (48 lines), with nothing rewritten around it | A frame, and the wipe that takes frames, are control: in `doom.atm`, the main loop and the task `Wipe` |
 | `src/doom/d_main.c`, the "demo loop" | Removed (138 lines): `demosequence`, `pagetic`, `pagename`, and `D_PageTicker`, `D_PageDrawer`, `D_AdvanceDemo`, `D_DoAdvanceDemo`, `D_StartTitle` | The cycle of the title is control: the task `Title` of `flow.atm` |
 | `src/doom/g_game.c`, `G_Ticker` | The loop that does the actions of `gameaction` (36 lines) becomes one call, `G_DoActions ();`, with its prototype | What comes after what is control: the task `Game` of `flow.atm` |
+| `src/doom/st_stuff.c`, the face | `ST_calcPainOffset` and `ST_updateFaceWidget` are removed (they are in `c/main.c` as they were), with a prototype of the second; `plyr`, `st_oldhealth`, `oldweaponsowned`, `st_facecount`, `st_faceindex`, and `st_randomnumber` lose their `static` | The face is in `st.atm`, and reads and writes these variables, which the rest of the status bar keeps |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 | `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |
@@ -109,6 +110,7 @@ From the engine to the program:
 | `D_DoAdvanceDemo()` | The next step of the title (`RunTic`, when `advancedemo` is set). Emits `:title.next` |
 | `D_PageTicker()`, `D_PageDrawer()` | A tic, and a frame, of a page of the title. Emit `:page.tic` and `:page.draw` |
 | `D_AdvanceDemo()` | A demo ended (`G_CheckDemoStatus`). Sets `advancedemo`, as before; emits nothing |
+| `ST_updateFaceWidget()` | A tic of the status bar (`ST_Ticker`). Emits `:st.face` |
 | `F_StartFinale()` | An episode ended (`G_Ticker`, `G_DoCompleted`). Sets the state of the game, chooses the text, and emits `:fi.start` |
 | `F_Ticker()` | A tic of the game in the finale (`G_Ticker`). Emits `:fi.tic` |
 | `F_Drawer()` | The finale must be drawn (`D_Display`). Emits `:fi.draw` |

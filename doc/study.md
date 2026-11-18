@@ -306,3 +306,46 @@ task Game (start) {
 | A save and a load (`save`) | A screenshot (it writes a file) |
 | A death that loads the level again (`death`) | |
 | A game started before the program (`dm`, `net`, `finale`, with `-warp`) | |
+
+## The face of the status bar
+
+| | C (`ST_updateFaceWidget`, `ST_calcPainOffset`) | Atmos (`st.atm`) |
+|---|---|---|
+| Lines | 149 | 130, of which 43 are C in the `:prelude` |
+| State | `priority`, `lastattackdown`, `lastcalc`, `oldhealth` (`static` in the functions), `st_facecount` (of the file) | `prio`, `count`, `rampage`, local to the task `Face` |
+
+The plan named the face as the best case left for tasks: "a face with
+priorities and timers". Read closely, it is not.
+
+- **It is an arbiter, checked at each tic.** The conditions are states
+  of the player, not events: the player is dead, has a damage count, has
+  a new weapon, holds fire. At each tic, the face of the highest
+  priority that applies replaces the one on screen if its priority is
+  higher. A sequence of awaits cannot say this: there is nothing to
+  await but the tic, and every condition must be tested again at each.
+- **An expired face keeps its priority for one more tic.** The count is
+  tested after the priorities, so the face whose count ended still holds
+  its priority against the checks of the tic in which it is replaced. A
+  version with a `watching` per face would release the priority one tic
+  earlier, and the screens would differ.
+- **So the Atmos version is the same machine**, in one `loop on
+  :st.face`, with the same tests in the same order. What it gains is
+  small: the state is local to one task instead of `static` variables
+  spread over two functions and the file, and the cache of the pain
+  offset is gone (it is a pure function of the health).
+- **What it costs**: six variables of `st_stuff.c` lost their `static`,
+  so that the program can read and write them; the angle of the attacker
+  stayed in C (`st_turn`), since it is arithmetic of the engine.
+
+This is a result for the border: a state machine that is polled at each
+tic, whose states are conditions of the simulation, stays a state
+machine in Atmos. Tasks help when the states follow each other in time
+(the intermission, the title, the flow), not when they are chosen anew
+at each tic.
+
+### What was verified, and what was not
+
+The thirteen tests are identical, and their screens include the face
+(the demos have attacks from monsters, pickups, rapid fire; `death` the
+dead face; `level` god mode). Which of the branches each test reaches was
+not measured.
