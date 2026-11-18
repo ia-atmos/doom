@@ -5,9 +5,13 @@ decided, known and not done, or reported and not acknowledged. Keep it
 current: remove an item when it is settled, add one whenever something
 is left open.
 
-The numbers do not change. Numbers that are missing were settled.
+The numbers are the items of this session, `#N` (from another session,
+`doom#N`): unique, in order, never reused nor changed. Their index, with
+the state of each, is `ISSUES.md`. Numbers that are missing here were
+settled. A rule of the author of 2026-11-18: everything put to him has a
+number, and nothing else is enumerated with bare numbers.
 
-Last update: 2026-11-16.
+Last update: 2026-11-18.
 
 ## A. Decisions waiting for an answer
 
@@ -15,12 +19,12 @@ Each has the option recommended by this session.
 
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
+| 52 | D6, after the face: stop here and go to D7, or go on with the messages (`hu_stuff.c`), which are the same pattern as the face (a timer restarted by a condition polled at each tic, mixed with the chat of the net) and would need two functions cut and five more variables without `static` | Stop D6 and go to D7 | Asked on 2026-11-18 |
 
 ## B. Work known and not done
 
 | # | Work | Note |
 |---|------|------|
-| 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
 | 11 | D6: the messages (`hu_stuff.c`) next; the menus and the automap last, or not at all | The face is done |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
@@ -106,3 +110,7 @@ and declared the rules of `pin` stable until the next round.
 - 41, 48: the two migrations of `pin` are done and acknowledged.
 - 4: on 2026-11-17 the author said to go on with D6: the status bar
   and its face first, then the messages.
+
+On 2026-11-18:
+
+- 35: done at D3 (`TryRunTics(); st = a_chk_aborted(DOOM_ST);`).
