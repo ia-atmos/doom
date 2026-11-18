@@ -33,6 +33,7 @@ Each has the option recommended by this session.
 | 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, a new game by `idclev`, the secret exit, the finale between the levels of Doom 2, a screenshot | The first and the fourth need other WADs |
 | 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
 | 50 | Where to send findings: about `pin`, to the session `atmos-pin` (`session_011eECogSDhkVfyt7qme5DLh`); anything else of the compiler, to `atmos-lang` (`session_011eECogKVQ7ZzmWCoMST2wK`, formerly `ceu-atmos`) | Decided by the author on 2026-11-18, relayed by `atmos-lang` |
+| 51 | With no rendering, the program is now slower than the engine all in C: 44 against 33 ms on demo1 (2026-11-18, the same machine and hour), where at D1 they were equal. The likely cause is the emit of `:st.face` at each tic (the face, D6), which traverses all the tasks; not measured apart. The compiler at `7480111` changed nothing (44 ms before and after) | To measure at D8, with the demos run several times in one process (item 20) |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
