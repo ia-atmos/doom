@@ -32,6 +32,7 @@ Each has the option recommended by this session.
 | 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
 | 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, a new game by `idclev`, the secret exit, the finale between the levels of Doom 2, a screenshot | The first and the fourth need other WADs |
 | 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
+| 50 | Where to send findings: about `pin`, to the session `atmos-pin` (`session_011eECogSDhkVfyt7qme5DLh`); anything else of the compiler, to `atmos-lang` (`session_011eECogKVQ7ZzmWCoMST2wK`, formerly `ceu-atmos`) | Decided by the author on 2026-11-18, relayed by `atmos-lang` |
 | 20 | `tst/bench.sh` has a grain of 1 ms over runs of 15 to 25 ms | Run the demos several times in one process, before D8 compares builds |
 
 ## C. Reported or decided, and not acknowledged
