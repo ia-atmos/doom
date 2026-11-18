@@ -15,14 +15,13 @@ Each has the option recommended by this session.
 
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
-| 4 | How far to go after the flow: the status bar and its face, the messages, the menus, the automap | The status bar and its face first (the face is a small machine with priorities and timers, the best case left for tasks); then the messages; the menus and the automap last, or not at all (mostly drawing and input) | Asked on 2026-11-16, now that D2 to D5 are done |
 
 ## B. Work known and not done
 
 | # | Work | Note |
 |---|------|------|
 | 35 | When the engine first emits to the program from inside a call (`:tic`, D3 on): the C function returns the status of its emits, and the literal takes it as `st = a_chk_aborted(f());`, since the emit may abort the task that made the call | From the compiler session, 2026-11-14 (`ia-atmos/lang@dad1538`, manual "Native Literals", `tst/cases/native-10.atm`). Update the compiler checkout first |
-| 11 | D6: the status bar, the messages, the menus, the automap | Waits for A4 |
+| 11 | D6: the messages (`hu_stuff.c`) next; the menus and the automap last, or not at all | The face is done |
 | 12 | D7: the variant: a door and the zombieman as tasks | |
 | 13 | D8: the study and the benchmark | |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
@@ -39,6 +38,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 49 | The face of the status bar is in `st.atm` (2026-11-18), and did not become tasks: it is an arbiter of priorities checked at each tic, and an expired face keeps its priority for one more tic. Six variables of `st_stuff.c` lost their `static`. Thirteen tests identical | Reported to the author in this session |
 | 46 | D5 is done (2026-11-16): the flow is in `flow.atm` (the title, the demos, the levels, as tasks; the actions of `gameaction` as events); thirteen tests are identical | Reported to the author in this session |
 | 47 | The program starts at the first call from the engine (`doom_start`), which comes before `D_DoomFrames`, and tells a game started by `-warp` by `viewactive` | Decided by this session |
 | 43 | D4 is done (2026-11-16): the finale is in `fi.atm`; eleven tests are identical. The test of the finale ends E1M8 by the timer of a deathmatch, and not by playing (it was item 18) | Reported to the author in this session |
@@ -102,3 +102,5 @@ removal of the workarounds of `pin` (the constructor of `WI` stays),
 and declared the rules of `pin` stable until the next round.
 
 - 41, 48: the two migrations of `pin` are done and acknowledged.
+- 4: on 2026-11-17 the author said to go on with D6: the status bar
+  and its face first, then the messages.
