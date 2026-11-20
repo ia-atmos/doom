@@ -64,6 +64,9 @@ recorded runs, kept for the eye.
 | `finale` | The finale of the episode 1, reached by the timer of a deathmatch on E1M8 |
 | `endgame` | A new game, ended by the menu: the title starts again |
 | `death` | A player dies on E1M1, and a key loads the level again |
+| `dm2` | A deathmatch of one player through two intermissions |
+| `cheat` | A screenshot, and `idclev13`, which starts a new game in E1M3 |
+| `secret` | The way back from the secret level E1M9 to E1M4 |
 
 `tst/bench.sh` measures tics per second, and `tst/count.sh` counts the
 instructions exactly (it needs valgrind); see [`doc/bench.md`](doc/bench.md).

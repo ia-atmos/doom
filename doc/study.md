@@ -132,7 +132,9 @@ in the text of a task says that it draws before another.
 | Verified by a test, identical to C | Not verified |
 |---|---|
 | One player: the counters to the end, and skipped (`level`, `skip`) | The map of the episodes 2 and 3, with the animations of kind `:level`: the shareware WAD has only the episode 1 |
-| The map: the blinking, left by a key and by itself | The second intermission of a game (the "you are here" as the first map left it) |
+| The map: the blinking, left by a key and by itself | |
+| The second intermission of a game, with the "you are here" as the first map left it (`dm2`) | |
+| The way back from the secret level, E1M9, to E1M4 (`secret`) | |
 | Deathmatch with one player and no frags (`dm`) | Frags above zero, and more than one player |
 | A cooperative game with one player (`net`) | Doom 2 (`commercial`), which has no map |
 
@@ -300,10 +302,13 @@ task Game (start) {
 | Verified by a test, identical to C | Not verified |
 |---|---|
 | The cycle of the title, with its three demos, and back to the title (`title`) | The cycle of the Ultimate Doom, with `demo4`, and of Doom 2 |
-| A new game by the menu (`newgame`), and a game ended by the menu (`endgame`) | A new game by a cheat (`idclev`) |
-| A level, its intermission, and the next level (`level`, `skip`, `dm`, `net`) | The secret exit |
+| A new game by the menu (`newgame`), and a game ended by the menu (`endgame`) | |
+| A new game by a cheat, `idclev13` (`cheat`) | |
+| A level, its intermission, and the next level (`level`, `skip`, `dm`, `dm2`, `net`) | The secret exit itself (a switch in E1M3), and the secret level reached by it |
+| The way back from the secret level (`secret`, by `-warp 1 9`) | |
 | The victory, and the finale (`finale`) | Doom 2: the finale between levels, and the next level after it |
-| A save and a load (`save`) | A screenshot (it writes a file) |
+| A save and a load (`save`) | |
+| A screenshot, with `-devparm` and F1 (`cheat`) | |
 | A death that loads the level again (`death`) | |
 | A game started before the program (`dm`, `net`, `finale`, with `-warp`) | |
 
