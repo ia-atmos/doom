@@ -25,8 +25,7 @@ Each has the option recommended by this session.
 | # | Work | Note |
 |---|------|------|
 | 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap: listed for later | Stopped after the face, by #52 |
-| 12 | D7: the variant: a door and the zombieman as tasks | In course, since 2026-11-20 (#52) |
-| 13 | D8: the study and the benchmark | |
+| 13 | D8: the study and the benchmark | Next. `doc/study.md` and `doc/bench.md` have each part as it was done; D8 joins them, with the border |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
 | 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
@@ -41,6 +40,9 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 56 | D7 is done (2026-11-20): the variant `var.atm`, with the normal door and the zombieman as tasks; fifteen tests identical to the main build; it costs 2.7 to 3.2 times the instructions with no rendering, 9 to 14% more with it | By the session, after #52; in `doc/study.md` and `doc/seam.md` |
+| 57 | In the variant, the jump of a zombieman's own action (A_Look, A_Chase) is kept and taken when the action returns, so the action of the new row runs after the old action returns, where C ran it inside. Nothing between them reads it, and the demos agree; it is a difference of order that a future action could expose | By the session |
+| 58 | Not reached in the variant: the resurrection of a zombieman (no arch-vile in the shareware episode), and the jump to chase that damage gives to a standing zombieman; a zombieman respawned in Nightmare stays a C object | Note |
 | 52 | D6 stops after the face, and D7 starts; the messages, the menus, and the automap stay listed for later (#11) | By the session, to be confirmed: the author's rule "work with no input" of 2026-11-20, relayed by `atmos-lang` and checked in its transcript, with the recommendation of this session |
 | 53 | The tic of the face goes to its task alone (`atm_emit_to`): a broadcast costs about 180 instructions for each task that awaits another event, and the face had one at each tic | By the session. Sent to `atmos-lang` with the smallest program (2026-11-20) |
 | 54 | `tst/count.sh` counts the instructions exactly (callgrind), in the place of the times of `tst/bench.sh` for comparisons (#20): the program costs 22 to 29% more than C with no rendering, under 2% with it (#51) | By the session, in `doc/bench.md` |

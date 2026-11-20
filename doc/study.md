@@ -494,7 +494,7 @@ Where it goes, in demo1 with no rendering (callgrind):
   frame more than in the main build: it visits every door and every
   zombieman, at all their awaits, although none awaits `:frame`.
 - In the runtime, `emit_trail`, `emit_node`, `kit_next`, and the matches
-  of tags (`leaf_match1`, `a_is`) are 35% of all the instructions.
+  of tags (`leaf_match1`, `a_is`) are about 40% of all the instructions.
 
 With rendering, the simulation is a small part of the time, and the
 variant costs 9 to 14% more.

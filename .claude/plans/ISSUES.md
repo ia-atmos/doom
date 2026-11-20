@@ -25,7 +25,7 @@ no decision needed), **done**, **closed** (settled with no change),
 | 9 | D4: the finale | done 2026-11-16 |
 | 10 | D5: the flow of the game | done 2026-11-16 |
 | 11 | D6: the status bar, the messages, the menus, the automap | work: the face is done; the rest listed for later (#52) |
-| 12 | D7: the variant, a door and the zombieman as tasks | work: in course since 2026-11-20 |
+| 12 | D7: the variant, a door and the zombieman as tasks | done 2026-11-20 (#56) |
 | 13 | D8: the study and the benchmark | work |
 | 14 | The local clone of the compiler has the old address as its remote | note |
 | 15 | The two replacements of the plan | closed 2026-11-14 |
@@ -69,3 +69,6 @@ no decision needed), **done**, **closed** (settled with no change),
 | 53 | The tic of the face to its task alone (`atm_emit_to`) | done 2026-11-20; sent to `atmos-lang` |
 | 54 | `tst/count.sh`: the instructions, counted exactly | done 2026-11-20 |
 | 55 | Three new tests: `dm2`, `cheat` (with the screenshot), `secret` | done 2026-11-20 |
+| 56 | D7 done: the variant, fifteen tests identical, its cost | done 2026-11-20 |
+| 57 | The jumps of a zombieman's own action are taken after it returns | closed: by the session, in the study |
+| 58 | Not reached in the variant: the resurrection, the damage of a standing zombieman, Nightmare | note |
