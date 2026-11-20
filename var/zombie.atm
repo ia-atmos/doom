@@ -1,0 +1,412 @@
+;; THE VARIANT: THE ZOMBIEMAN AS A TASK
+;;
+;; For the comparison of the study only. In the original, the zombieman
+;; (MT_POSSESSED) is 33 rows of the table of states: a row is a frame, its
+;; tics, a function to call when it starts, and the next row; the engine
+;; steps the row at each tic, and code anywhere may force a jump to
+;; another row (pain, death). Here it is a task: its behaviors are in
+;; sequence in the code, and a jump from the engine is an event.
+;;
+;; The task still sets the row of its object at each step, since the
+;; renderer draws its frame and the engine reads it (`mobj->state`,
+;; `mobj->tics`), and it calls the same functions of the engine (A_Look,
+;; A_Chase, ...). What it does not use is the order of the table
+;; (`nextstate`): what comes after what is the code below.
+;;
+;; engine/src/doom/p_mobj.c leaves the build of this variant, and is
+;; included below, unedited, with P_SetMobjState, P_SpawnMobj, and
+;; P_SpawnMapThing renamed: the program has its own, which pass every
+;; object but the zombieman to them.
+;;
+;; The engine emits, to the task of one zombieman:
+;;
+;;      :z.tic      a tic of the zombieman (its thinker, after it moves)
+;;      :z.jump     code of the engine set its row (Z_JUMP): pain,
+;;                  death, the resurrection, the gibs of a crushed corpse
+;;
+;; and to the program:
+;;
+;;      :z.spawn    a zombieman is born (Z_NEW)
+;;
+;; A row that the zombieman's own action sets (A_Look sees the player,
+;; A_Chase decides to fire) is not an event: the task is running when the
+;; action calls the engine back, so the jump is kept (`pending`) and the
+;; task takes it when the action returns.
+
+```:prelude
+#include "p_local.h"
+
+// The functions of p_mobj.c that are renamed, declared before it, since
+// p_local.h was already read with their own names.
+boolean P_SetMobjState_C (mobj_t* mobj, statenum_t state);
+mobj_t* P_SpawnMobj_C (fixed_t x, fixed_t y, fixed_t z, mobjtype_t type);
+void P_SpawnMapThing_C (mapthing_t* mthing);
+
+// The actions of the zombieman, of p_enemy.c.
+void A_Look (mobj_t* actor);
+void A_Chase (mobj_t* actor);
+void A_FaceTarget (mobj_t* actor);
+void A_PosAttack (mobj_t* actor);
+void A_Pain (mobj_t* actor);
+void A_Scream (mobj_t* actor);
+void A_XScream (mobj_t* actor);
+void A_Fall (mobj_t* actor);
+
+#define P_SetMobjState  P_SetMobjState_C
+#define P_SpawnMobj     P_SpawnMobj_C
+#define P_SpawnMapThing P_SpawnMapThing_C
+#include "p_mobj.c"
+#undef P_SetMobjState
+#undef P_SpawnMobj
+#undef P_SpawnMapThing
+
+// A zombieman of the program: its object, its task, and the row that
+// its own action asked for.
+typedef struct {
+    mobj_t* mo;
+    AVal task;
+    int pending;
+} z_t;
+
+#define Z_MAX 1024
+static z_t Z[Z_MAX];
+static int Z_N = 0;
+static int Z_LEVEL = -1;
+
+static z_t* Z_NEW;                  // the zombieman of :z.spawn
+static int Z_JUMP;                  // the row of :z.jump
+static mobj_t* Z_RUNNING = NULL;    // the zombieman whose action runs
+
+#define ZZ(v) (&Z[(v).u.i])
+
+static z_t* z_find (mobj_t* mo) {
+    if (Z_LEVEL != levelstarttic) {
+        return NULL;                // the ones of the last level
+    }
+    for (int i=0; i<Z_N; i++) {
+        if (Z[i].mo == mo) {
+            return &Z[i];
+        }
+    }
+    return NULL;
+}
+
+// The thinker of a zombieman of the program: it moves as P_MobjThinker,
+// and then gives the tic to its task, where P_MobjThinker stepped the
+// row. Its place in the list of thinkers is the one of the original.
+void Z_Thinker (mobj_t* mobj) {
+    if (mobj->momx || mobj->momy || (mobj->flags&MF_SKULLFLY)) {
+        P_XYMovement(mobj);
+        if (mobj->thinker.function.acv == (actionf_v) (-1)) {
+            return;                 // mobj was removed
+        }
+    }
+    if ((mobj->z != mobj->floorz) || mobj->momz) {
+        P_ZMovement(mobj);
+        if (mobj->thinker.function.acv == (actionf_v) (-1)) {
+            return;                 // mobj was removed
+        }
+    }
+    if (mobj->tics != -1) {
+        doom_emit_to(z_find(mobj)->task, "z.tic");
+    } else {
+        // check for nightmare respawn (as P_MobjThinker)
+        if (!(mobj->flags & MF_COUNTKILL)) return;
+        if (!respawnmonsters) return;
+        mobj->movecount++;
+        if (mobj->movecount < 12*TICRATE) return;
+        if (leveltime&31) return;
+        if (P_Random () > 4) return;
+        P_NightmareRespawn(mobj);
+    }
+}
+
+// A zombieman is born: it becomes a task. The first of a level forgets
+// the ones of the last level, whose objects are freed.
+static void z_adopt (mobj_t* mo) {
+    if (Z_LEVEL != levelstarttic) {
+        Z_LEVEL = levelstarttic;
+        Z_N = 0;
+    }
+    if (Z_N == Z_MAX) {
+        I_Error("zombie.atm: more than %d zombiemen", Z_MAX);
+    }
+    z_t* z = &Z[Z_N++];
+    z->mo = mo;
+    z->pending = 0;
+    mo->thinker.function.acp1 = (actionf_p1) Z_Thinker;
+    Z_NEW = z;
+    doom_emit("z.spawn");
+}
+
+mobj_t* P_SpawnMobj (fixed_t x, fixed_t y, fixed_t z, mobjtype_t type) {
+    mobj_t* mo = P_SpawnMobj_C(x, y, z, type);
+    if (type == MT_POSSESSED) {
+        z_adopt(mo);
+    }
+    return mo;
+}
+
+void P_SpawnMapThing (mapthing_t* mthing) {
+    thinker_t* last = thinkercap.prev;
+    P_SpawnMapThing_C(mthing);
+    if (thinkercap.prev != last) {
+        mobj_t* mo = (mobj_t*) thinkercap.prev;
+        if (mo->thinker.function.acp1 == (actionf_p1) P_MobjThinker
+         && mo->type == MT_POSSESSED) {
+            z_adopt(mo);
+        }
+    }
+}
+
+// Code of the engine sets the row of an object. A zombieman of the
+// program takes it in its task: as an event, or, if its own action is
+// running, as the row that the action asked for.
+boolean P_SetMobjState (mobj_t* mobj, statenum_t state) {
+    z_t* z = (mobj->type == MT_POSSESSED) ? z_find(mobj) : NULL;
+    if (z == NULL) {
+        return P_SetMobjState_C(mobj, state);
+    }
+    if (mobj == Z_RUNNING) {
+        z->pending = state;
+    } else {
+        Z_JUMP = state;
+        doom_emit_to(z->task, "z.jump");
+    }
+    return true;
+}
+
+// The task enters a row: what the renderer and the engine read.
+static void z_row (z_t* z, int st) {
+    mobj_t* mo = z->mo;
+    mo->state = &states[st];
+    mo->tics = states[st].tics;
+    mo->sprite = states[st].sprite;
+    mo->frame = states[st].frame;
+}
+
+// Calls an action of the engine for the zombieman. Returns the row that
+// it asked for, or 0.
+static int z_act (z_t* z, void (*act)(mobj_t*)) {
+    mobj_t* prev = Z_RUNNING;
+    Z_RUNNING = z->mo;
+    z->pending = 0;
+    act(z->mo);
+    Z_RUNNING = prev;
+    return z->pending;
+}
+
+// The action of a row of the table, for a row that is not the
+// zombieman's (the gibs of a crushed corpse).
+static int z_act_row (z_t* z, int st) {
+    return states[st].action.acp1 ? z_act(z, (void (*)(mobj_t*)) states[st].action.acp1) : 0;
+}
+
+// The tics of the row of the zombieman, which the engine may change.
+static int z_tic (z_t* z) {
+    return --z->mo->tics;
+}
+```
+
+;; THE ROWS
+
+;; Enters a row and calls its action, if any. Returns the row of a jump
+;; that the action asked for, or nil.
+func enter (z, st, act) {
+    `z_row(ZZ($z), a_dbl($st));`
+    val jump = if act => act(z) => 0
+    if jump == 0 => nil => jump
+}
+
+func look (z)  { `:number z_act(ZZ($z), A_Look)` }
+func chase (z) { `:number z_act(ZZ($z), A_Chase)` }
+func face (z)  { `:number z_act(ZZ($z), A_FaceTarget)` }
+func shoot (z) { `:number z_act(ZZ($z), A_PosAttack)` }
+func pain (z)  { `:number z_act(ZZ($z), A_Pain)` }
+func scream (z) { `:number z_act(ZZ($z), A_Scream)` }
+func xscream (z) { `:number z_act(ZZ($z), A_XScream)` }
+func fall (z)  { `:number z_act(ZZ($z), A_Fall)` }
+
+;; The tics of the row on screen, as P_MobjThinker counted them.
+task Tics (z) {
+    loop on :z.tic {
+        until `:number z_tic(ZZ($z))` == 0
+    }
+}
+
+;; THE BEHAVIORS
+;;
+;; Each returns the row where the zombieman goes next.
+
+val S_STND  = `:number S_POSS_STND`
+val S_STND2 = `:number S_POSS_STND2`
+val S_RUN1  = `:number S_POSS_RUN1`
+val S_ATK1  = `:number S_POSS_ATK1`
+val S_PAIN  = `:number S_POSS_PAIN`
+val S_DIE1  = `:number S_POSS_DIE1`
+val S_XDIE1 = `:number S_POSS_XDIE1`
+val S_RAISE1 = `:number S_POSS_RAISE1`
+
+;; Stands and looks around, until it sees a player.
+task Stand (z, born) {
+    if born {
+        await Tics(z)                   ;; the row of its birth, no action
+    } else {
+        val j = enter(z, S_STND, look)
+        if j { return(j) }
+        await Tics(z)
+    }
+    loop {
+        val j2 = enter(z, S_STND2, look)
+        if j2 { return(j2) }
+        await Tics(z)
+        val j1 = enter(z, S_STND, look)
+        if j1 { return(j1) }
+        await Tics(z)
+    }
+}
+
+;; Walks after its target, 8 rows in a loop, until it decides to fire, or
+;; loses its target.
+task Chase (z) {
+    loop {
+        loop i in 8 {
+            val j = enter(z, S_RUN1 + i, chase)
+            if j { return(j) }
+            await Tics(z)
+        }
+    }
+}
+
+;; Aims, fires, and walks again.
+task Attack (z) {
+    enter(z, S_ATK1, face)
+    await Tics(z)
+    enter(z, S_ATK1 + 1, shoot)
+    await Tics(z)
+    enter(z, S_ATK1 + 2, nil)
+    await Tics(z)
+    S_RUN1
+}
+
+task Pain (z) {
+    enter(z, S_PAIN, nil)
+    await Tics(z)
+    enter(z, S_PAIN + 1, pain)
+    await Tics(z)
+    S_RUN1
+}
+
+;; Dies: 5 rows, and the last stays.
+task Death (z) {
+    enter(z, S_DIE1, nil)
+    await Tics(z)
+    enter(z, S_DIE1 + 1, scream)
+    await Tics(z)
+    enter(z, S_DIE1 + 2, fall)
+    await Tics(z)
+    enter(z, S_DIE1 + 3, nil)
+    await Tics(z)
+    enter(z, S_DIE1 + 4, nil)
+    await(false)
+}
+
+;; Dies in pieces: 9 rows, and the last stays.
+task XDeath (z) {
+    enter(z, S_XDIE1, nil)
+    await Tics(z)
+    enter(z, S_XDIE1 + 1, xscream)
+    await Tics(z)
+    enter(z, S_XDIE1 + 2, fall)
+    await Tics(z)
+    loop i in (3, 7) {
+        enter(z, S_XDIE1 + i, nil)
+        await Tics(z)
+    }
+    enter(z, S_XDIE1 + 8, nil)
+    await(false)
+}
+
+;; Rises from the dead (an arch-vile), and walks.
+task Raise (z) {
+    loop i in 4 {
+        enter(z, S_RAISE1 + i, nil)
+        await Tics(z)
+    }
+    S_RUN1
+}
+
+;; A row that is not the zombieman's (the gibs of a crushed corpse): the
+;; rows of the table, as the engine plays them.
+task Rows (z, st0) {
+    var st = st0
+    loop {
+        `z_row(ZZ($z), a_dbl($st));`
+        val j = `:number z_act_row(ZZ($z), a_dbl($st))`
+        if j != 0 { return(j) }
+        if `:boolean states[(int)a_dbl($st)].tics == -1` {
+            await(false)
+        }
+        await Tics(z)
+        set st = `:number states[(int)a_dbl($st)].nextstate`
+        if st == `:number S_NULL` {
+            `P_RemoveMobj(ZZ($z)->mo);`
+            await(false)
+        }
+    }
+}
+
+;; From a row, the behavior that starts there.
+task Life (z, from) {
+    var st = from
+    loop {
+        set st = if st == nil {
+            await Stand(z, true)
+        } else { if st == S_STND {
+            await Stand(z, false)
+        } else { if st == S_RUN1 {
+            await Chase(z)
+        } else { if st == S_ATK1 {
+            await Attack(z)
+        } else { if st == S_PAIN {
+            await Pain(z)
+        } else { if st == S_DIE1 {
+            await Death(z)
+        } else { if st == S_XDIE1 {
+            await XDeath(z)
+        } else { if st == S_RAISE1 {
+            await Raise(z)
+        } else {
+            await Rows(z, st)
+        } } } } } } } }
+    }
+}
+
+;; A zombieman: its life, which a jump from the engine (pain, death)
+;; interrupts at any row, and starts again from there.
+task Zombie (z) {
+    val me = task
+    `ZZ($z)->task = $me;`
+    var st = nil                        ;; its birth
+    loop {
+        watching :z.jump {
+            await Life(z, st)
+        }
+        set st = `:number Z_JUMP`
+    }
+}
+
+;; The zombiemen of a level, in one pool, as the doors (see doors.atm).
+spawn {
+    await :z.spawn
+    loop {
+        val level = `:number levelstarttic`
+        pin zs = tasks()
+        spawn @zs Zombie(`:number.integer (Z_NEW - Z)`)
+        loop {
+            await :z.spawn
+            until `:number levelstarttic` != level
+            spawn @zs Zombie(`:number.integer (Z_NEW - Z)`)
+        }
+    }
+}

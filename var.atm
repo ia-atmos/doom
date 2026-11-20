@@ -1,6 +1,7 @@
 ;; The variant of the study: the program of the main build, with one door
-;; (var/doors.atm) as a task. No saved games. See doom.atm, and the plan.
+;; (var/doors.atm) and the zombieman (var/zombie.atm) as tasks. No saved games. See doom.atm, and the plan.
 
 include "doom.atm"
 include "var/doors.atm"
+include "var/zombie.atm"
 include "frames.atm"

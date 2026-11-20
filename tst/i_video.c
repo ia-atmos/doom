@@ -336,6 +336,10 @@ static void TST_SumInt (int v)
     TST_Sum(&v, sizeof(v));
 }
 
+// The thinker of the zombieman of the variant of the study (var/), an
+// object as the others: weak, so that the other builds need not have it.
+extern void Z_Thinker (mobj_t* mo) __attribute__((weak));
+
 static unsigned int TST_SumSim (void)
 {
     thinker_t *th;
@@ -350,7 +354,8 @@ static unsigned int TST_SumSim (void)
 
     for (th = thinkercap.next; th != &thinkercap; th = th->next)
     {
-        if (th->function.acp1 == (actionf_p1) P_MobjThinker)
+        if (th->function.acp1 == (actionf_p1) P_MobjThinker
+         || (Z_Thinker != NULL && th->function.acp1 == (actionf_p1) Z_Thinker))
         {
             mobj_t *mo = (mobj_t *) th;
 

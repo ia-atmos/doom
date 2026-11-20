@@ -65,8 +65,9 @@ $(OUT)/doom.atm.c: $(wildcard *.atm) $(ATMOS)/atmos
 $(OUT)/doom.atm.o: $(OUT)/doom.atm.c
 	$(CC) $(CFLAGS) -I$(ATMOS)/rt -c $< -o $@
 
-# THE VARIANT of the study (var.atm): a door as a task; no saved games
-VAR_OUT  := $(ATM_OUT) $(OUT)/engine/src/doom/p_doors.o
+# THE VARIANT of the study (var.atm): a door and the zombieman as tasks;
+# no saved games
+VAR_OUT  := $(ATM_OUT) $(OUT)/engine/src/doom/p_doors.o $(OUT)/engine/src/doom/p_mobj.o
 
 var: $(OUT)/doom-var-tst
 
