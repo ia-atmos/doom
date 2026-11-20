@@ -47,6 +47,20 @@ void G_DoPlayDemo (void);
 void G_DoCompleted (void);
 void G_DoWorldDone (void);
 
+// The variant of the study (var.atm, built with DOOM_VARIANT) has no
+// saved games: its doors are tasks, which cannot be written to a file.
+#ifdef DOOM_VARIANT
+static void flow_no_save (void) {
+    gameaction = ga_nothing;
+    players[consoleplayer].message = "no saved games in this build";
+}
+#define FLOW_SAVE() flow_no_save()
+#define FLOW_LOAD() flow_no_save()
+#else
+#define FLOW_SAVE() G_DoSaveGame()
+#define FLOW_LOAD() G_DoLoadGame()
+#endif
+
 // THE ACTIONS
 
 static const char* G_ACTIONS[] = {
@@ -190,7 +204,7 @@ task Game (start) {
         `G_DoNewGame();`
     }
     if start == "g.loadgame" {
-        `G_DoLoadGame();`
+        `FLOW_LOAD();`
     }
     if start == "g.playdemo" {
         `G_DoPlayDemo();`
@@ -218,7 +232,7 @@ spawn {
 }
 spawn {
     loop on :g.savegame {
-        `G_DoSaveGame();`
+        `FLOW_SAVE();`
     }
 }
 spawn {

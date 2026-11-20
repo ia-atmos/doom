@@ -4,6 +4,7 @@
 #
 #     tst/run.sh              runs all and compares
 #     tst/run.sh <name>...    only these
+#     SKIP="a b" tst/run.sh   all but these
 #     tst/run.sh -r [<name>]  records the expected outputs (and the shots)
 #
 # A test <name> is:
@@ -32,7 +33,8 @@ fi
 [ -f "$WAD" ] || { echo "$WAD: not there (./wad.sh)"; exit 1; }
 
 if [ $# -eq 0 ]; then
-    set -- $(cd "$TST" && ls *.args | sed 's/\.args$//')
+    # SKIP: names of tests to leave out, separated by blanks
+    set -- $(cd "$TST" && ls *.args | sed 's/\.args$//' | grep -vxF -e "${SKIP:-}" ${SKIP:+$(printf -- '-e %s ' $SKIP)})
 fi
 
 FAIL=0

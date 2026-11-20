@@ -1,0 +1,6 @@
+;; The variant of the study: the program of the main build, with one door
+;; (var/doors.atm) as a task. No saved games. See doom.atm, and the plan.
+
+include "doom.atm"
+include "var/doors.atm"
+include "frames.atm"

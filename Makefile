@@ -65,8 +65,28 @@ $(OUT)/doom.atm.c: $(wildcard *.atm) $(ATMOS)/atmos
 $(OUT)/doom.atm.o: $(OUT)/doom.atm.c
 	$(CC) $(CFLAGS) -I$(ATMOS)/rt -c $< -o $@
 
+# THE VARIANT of the study (var.atm): a door as a task; no saved games
+VAR_OUT  := $(ATM_OUT) $(OUT)/engine/src/doom/p_doors.o
+
+var: $(OUT)/doom-var-tst
+
+$(OUT)/doom-var-tst: $(OUT)/var.atm.o $(filter-out $(VAR_OUT), $(TST_OBJS))
+	$(CC) -o $@ $^ $(ATM_LIB) $(SDL_L) -lm
+
+$(OUT)/var.atm.c: $(wildcard *.atm var/*.atm) $(ATMOS)/atmos
+	@mkdir -p $(dir $@)
+	$(ATMOS)/atmos -c var.atm > $@
+
+$(OUT)/var.atm.o: $(OUT)/var.atm.c
+	$(CC) $(CFLAGS) -DDOOM_VARIANT -I$(ATMOS)/rt -c $< -o $@
+
 test: $(OUT)/doom-tst
 	tst/run.sh
+
+# all the tests but the one that saves, against the outputs of the main
+# build
+test-var: $(OUT)/doom-var-tst
+	SKIP=save BIN=$(abspath $(OUT)/doom-var-tst) tst/run.sh
 
 test-c: $(OUT)/doom-c-tst
 	BIN=$(abspath $(OUT)/doom-c-tst) tst/run.sh
@@ -78,6 +98,6 @@ $(OUT)/%.o: %.c
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all test test-c clean
+.PHONY: all var test test-c test-var clean
 
 -include $(ENG_OBJS:.o=.d) $(TST_OBJS:.o=.d) $(C_OBJS:.o=.d)

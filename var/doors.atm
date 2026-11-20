@@ -1,0 +1,232 @@
+;; THE VARIANT: A DOOR AS A TASK
+;;
+;; For the comparison of the study only: in this build, the door that
+;; opens, waits, and closes (`vld_normal`, the door that a player or a
+;; monster uses) is a task, and not a thinker of the engine that steps a
+;; state at each tic. The other doors, and everything else, stay as they
+;; are. This build has no saved games: a task cannot be written to a
+;; file.
+;;
+;; engine/src/doom/p_doors.c leaves the build of this variant, and is
+;; included below, unedited: its EV_DoDoor and EV_VerticalDoor are
+;; renamed, and the program has its own, which make a task of each normal
+;; door and pass the rest to them.
+;;
+;; The engine emits, to the task of one door:
+;;
+;;      :door.tic           a tic of the door (its thinker, in the list)
+;;      :door.use.player    a player uses the door
+;;      :door.use.monster   a monster uses the door
+;;
+;; and to the program:
+;;
+;;      :door.spawn         a normal door starts (DOOR_NEW)
+
+```:prelude
+#define EV_DoDoor       EV_DoDoor_C
+#define EV_VerticalDoor EV_VerticalDoor_C
+#include "p_doors.c"
+#undef EV_DoDoor
+#undef EV_VerticalDoor
+
+// A door of the program: the record of the engine, which other code
+// reads (sector->specialdata, the direction), and its task.
+typedef struct {
+    vldoor_t door;
+    AVal task;
+} door_t;
+
+#define DOOR(d) ((door_t*)(intptr_t)(d).u.i)
+
+static door_t* DOOR_NEW;            // the door of :door.spawn
+
+// The thinker of a door of the program: a tic to its task. It keeps the
+// place of the door in the list of thinkers, and so the order of the
+// original.
+static void T_DoorTask (door_t* d) {
+    doom_emit_to(d->task, "door.tic");
+}
+
+// A normal door starts in `sec`, going up: as EV_DoDoor and
+// EV_VerticalDoor made it.
+static door_t* door_new (sector_t* sec) {
+    door_t* d = Z_Malloc(sizeof(*d), PU_LEVSPEC, 0);
+    P_AddThinker(&d->door.thinker);
+    sec->specialdata = d;
+    d->door.thinker.function.acp1 = (actionf_p1) T_DoorTask;
+    d->door.sector = sec;
+    d->door.type = vld_normal;
+    d->door.topwait = VDOORWAIT;
+    d->door.speed = VDOORSPEED;
+    d->door.direction = 1;
+    d->door.topheight = P_FindLowestCeilingSurrounding(sec) - 4*FRACUNIT;
+    DOOR_NEW = d;
+    doom_emit("door.spawn");
+    return d;
+}
+
+static int door_move (door_t* d, int dir) {
+    sector_t* sec = d->door.sector;
+    d->door.direction = dir;        // for who reads it
+    return T_MovePlane(sec, d->door.speed,
+                       (dir == 1) ? d->door.topheight : sec->floorheight,
+                       false, 1, dir);
+}
+
+static void door_sound (door_t* d, int sfx) {
+    S_StartSound(&d->door.sector->soundorg, sfx);
+}
+
+static void door_end (door_t* d) {
+    d->door.sector->specialdata = NULL;
+    P_RemoveThinker(&d->door.thinker);
+}
+
+// As EV_DoDoor of p_doors.c, with a task for a normal door.
+int EV_DoDoor (line_t* line, vldoor_e type) {
+    if (type != vld_normal) {
+        return EV_DoDoor_C(line, type);
+    }
+    int secnum = -1;
+    int rtn = 0;
+    while ((secnum = P_FindSectorFromLineTag(line,secnum)) >= 0) {
+        sector_t* sec = &sectors[secnum];
+        if (sec->specialdata) {
+            continue;
+        }
+        rtn = 1;
+        door_t* d = door_new(sec);
+        if (d->door.topheight != sec->ceilingheight) {
+            door_sound(d, sfx_doropn);
+        }
+    }
+    return rtn;
+}
+
+// As EV_VerticalDoor of p_doors.c (the door that is used), with a task
+// for a normal door.
+void EV_VerticalDoor (line_t* line, mobj_t* thing) {
+    player_t* player = thing->player;
+    int side = 0;
+
+    switch (line->special) {
+        case 26: case 32:       // blue lock
+            if (!player) return;
+            if (!player->cards[it_bluecard] && !player->cards[it_blueskull]) {
+                player->message = DEH_String(PD_BLUEK);
+                S_StartSound(NULL,sfx_oof);
+                return;
+            }
+            break;
+        case 27: case 34:       // yellow lock
+            if (!player) return;
+            if (!player->cards[it_yellowcard] && !player->cards[it_yellowskull]) {
+                player->message = DEH_String(PD_YELLOWK);
+                S_StartSound(NULL,sfx_oof);
+                return;
+            }
+            break;
+        case 28: case 33:       // red lock
+            if (!player) return;
+            if (!player->cards[it_redcard] && !player->cards[it_redskull]) {
+                player->message = DEH_String(PD_REDK);
+                S_StartSound(NULL,sfx_oof);
+                return;
+            }
+            break;
+    }
+
+    if (line->sidenum[side^1] == -1) {
+        I_Error("EV_VerticalDoor: DR special type on 1-sided linedef");
+    }
+    sector_t* sec = sides[line->sidenum[side^1]].sector;
+
+    // a door of the program is already there: the use goes to its task
+    if (sec->specialdata &&
+        ((thinker_t*)sec->specialdata)->function.acp1 == (actionf_p1) T_DoorTask)
+    {
+        switch (line->special) {
+            case 1: case 26: case 27: case 28: case 117:
+                doom_emit_to(((door_t*)sec->specialdata)->task,
+                             player ? "door.use.player" : "door.use.monster");
+                return;
+        }
+    }
+
+    // a normal door starts (the sound is the one of EV_VerticalDoor)
+    if (!sec->specialdata) {
+        switch (line->special) {
+            case 1: case 26: case 27: case 28:
+                S_StartSound(&sec->soundorg, sfx_doropn);
+                door_new(sec);
+                return;
+        }
+    }
+
+    // anything else, as the engine did
+    EV_VerticalDoor_C(line, thing);
+}
+```
+
+;; A normal door: up to the lowest ceiling around, a wait of 150 tics at
+;; the top, and down to the floor, where it ends. Something under it while
+;; it closes makes it open again. A use while it closes opens it again;
+;; a use by a player while it opens or waits closes it (a monster never
+;; closes a door).
+task Door (d) {
+    val me = task
+    `DOOR($d)->task = $me;`
+
+    var dir = 1                         ;; 1: up, 0: at the top, -1: down
+    loop {
+        val next = par :any {
+            if dir == 1 {
+                loop on :door.tic {
+                    until `:boolean door_move(DOOR($d), 1) == pastdest`
+                }
+                0
+            } else {
+                if dir == 0 {
+                    `DOOR($d)->door.direction = 0;`
+                    await(150, :door.tic)
+                    `door_sound(DOOR($d), sfx_dorcls);`
+                    (-1)
+                } else {
+                    val res = loop on :door.tic {
+                        val r = `:number door_move(DOOR($d), -1)`
+                        until (r == `:number pastdest`) || (r == `:number crushed`), r
+                    }
+                    if res == `:number crushed` {
+                        `door_sound(DOOR($d), sfx_doropn);`
+                        1
+                    } else {
+                        `door_end(DOOR($d));`
+                        :end
+                    }
+                }
+            }
+        } with {
+            val e = await :door.use until (dir == -1) || (it == "door.use.player")
+            if dir == -1 => 1 => (-1)
+        }
+        until next == :end
+        set dir = next
+    }
+}
+
+;; The doors of a level, in one pool. A level frees the records of its
+;; doors when it ends, so the first door of the next level ends the tasks
+;; of the last one, which no tic reaches any more.
+spawn {
+    await :door.spawn
+    loop {
+        val level = `:number levelstarttic`
+        pin doors = tasks()
+        spawn @doors Door(`:number.integer (intptr_t) DOOR_NEW`)
+        loop {
+            await :door.spawn
+            until `:number levelstarttic` != level
+            spawn @doors Door(`:number.integer (intptr_t) DOOR_NEW`)
+        }
+    }
+}
