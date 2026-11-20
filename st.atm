@@ -10,7 +10,8 @@
 ;;
 ;; The engine emits:
 ;;
-;;      :st.face        once per tic of a level (ST_Ticker)
+;;      :st.face        once per tic of a level (ST_Ticker), to the task
+;;                      Face only
 
 ```:prelude
 #include "doomdef.h"
@@ -26,9 +27,17 @@ extern boolean oldweaponsowned[NUMWEAPONS];
 extern int st_faceindex;
 extern int st_randomnumber;
 
+// The task Face, which alone awaits :st.face. It lives as long as the
+// program, so it is kept here with no reference of its own.
+static AVal ST_FACE;
+static int ST_FACE_ON = 0;
+
 // Called by the engine (ST_updateWidgets), once per tic.
 void ST_updateFaceWidget (void) {
-    doom_emit("st.face");
+    doom_start();
+    if (ST_FACE_ON) {
+        doom_emit_to(ST_FACE, "st.face");
+    }
 }
 
 // The player has a weapon that it did not have: the old ones are
@@ -102,6 +111,9 @@ task Face () {
         set count = n
         `st_faceindex = a_dbl($face);`
     }
+
+    val me = task
+    `ST_FACE = $me; ST_FACE_ON = 1;`
 
     loop on :st.face {
         val health  = `:number plyr->health`

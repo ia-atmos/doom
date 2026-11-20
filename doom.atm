@@ -61,6 +61,19 @@ static void doom_emit (const char* tag) {
     }
 }
 
+// An event from the engine to one task (and what it holds), with no
+// traversal of the rest of the program: for an event that only that
+// task awaits, and that comes at each tic. A broadcast costs about 180
+// instructions for each task that awaits another event.
+static void doom_emit_to (AVal to, const char* tag) {
+    doom_start();
+    if (DOOM_ST == A_OK) {
+        AVal evt = a_strz(tag);
+        DOOM_ST = atm_emit_to(to, evt);
+        a_dec(evt);
+    }
+}
+
 // Called by the engine, once, in the place of its loop of frames.
 void D_DoomFrames (void) {
     doom_start();
