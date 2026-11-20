@@ -1,0 +1,19 @@
+# A new game, a screenshot, and the cheat that changes the level: the
+# game starts again in E1M3.
+50  press escape        # the main menu
+70  press enter         # New Game
+90  press enter         # Knee-Deep in the Dead
+110 press enter         # Hurt me plenty
+200 press f1            # a screenshot (F1 with -devparm): a message, and a file
+210 shot message.ppm
+300 press i
+302 press d
+304 press c
+306 press l
+308 press e
+310 press v
+312 press 1
+314 press 3             # idclev13: E1M3
+330 shot clev.ppm
+420 shot e1m3.ppm
+500 quit
