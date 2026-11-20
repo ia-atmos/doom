@@ -65,7 +65,8 @@ recorded runs, kept for the eye.
 | `endgame` | A new game, ended by the menu: the title starts again |
 | `death` | A player dies on E1M1, and a key loads the level again |
 
-`tst/bench.sh` measures tics per second; see [`doc/bench.md`](doc/bench.md).
+`tst/bench.sh` measures tics per second, and `tst/count.sh` counts the
+instructions exactly (it needs valgrind); see [`doc/bench.md`](doc/bench.md).
 
 ## Folders
 
