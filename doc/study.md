@@ -354,3 +354,147 @@ The thirteen tests are identical, and their screens include the face
 (the demos have attacks from monsters, pickups, rapid fire; `death` the
 dead face; `level` god mode). Which of the branches each test reaches was
 not measured.
+
+## The variant: a door and the zombieman as tasks
+
+A second program (`var.atm`, `make var`), for the comparison only: the
+door that opens, waits, and closes, and the zombieman, are tasks, where
+the engine has a thinker that steps a state at each tic. It has no saved
+games. Its oracle is the main build: `make test-var` runs every test but
+`save` against the same expected outputs, and the fifteen are identical,
+tic by tic, simulation and screen.
+
+How it meets the engine, with nothing of it edited: `p_doors.c` and
+`p_mobj.c` leave the build of the variant and are included in the
+program as they are, with a few functions renamed by the preprocessor
+(`EV_DoDoor`, `EV_VerticalDoor`; `P_SetMobjState`, `P_SpawnMobj`,
+`P_SpawnMapThing`). The program has its own, which make tasks of the
+doors and zombiemen and pass everything else to the originals.
+
+- **The list of thinkers stays the scheduler.** A door or a zombieman
+  keeps its thinker in the list, in the place it had; the thinker only
+  gives its tic to the task (`atm_emit_to`). So the order of the calls
+  to the random generator is the original one, and the demos stay in
+  sync.
+- **What the demos reach**: 2241 tics of doors in demo1; 83 zombiemen in
+  the three demos, with 299 thousand of their tics, their stand, chase,
+  attack, pain, death, and death in pieces, and the gibs of a crushed
+  corpse. Not reached: the resurrection (no arch-vile in the shareware
+  episode), and the jump to chase that damage gives to a standing
+  zombieman.
+
+### The door
+
+| | C (`T_VerticalDoor`, the normal door) | Atmos (`Door`, `var/doors.atm`) |
+|---|---|---|
+| State | `direction` (1, 0, -1), `topcountdown`, in a record | where the task waits, and `dir` |
+
+C, at each tic, a `switch` on `direction`, and inside it a `switch` on
+the type of the door; the use of a door (`EV_VerticalDoor`) writes
+`direction` from outside. Atmos:
+
+```
+loop {
+    val next = par :any {
+        <up: loop on :door.tic until the top>      ;; then 0
+        <top: await(150, :door.tic)>                ;; then -1
+        <down: loop on :door.tic until the floor or something under it>
+    } with {
+        await :door.use until (dir == -1) || (it == "door.use.player")
+        if dir == -1 => 1 => (-1)
+    }
+    ...
+}
+```
+
+- The wait at the top is `await(150, :door.tic)`: `topcountdown` is
+  gone.
+- The use from outside is an event that interrupts the phase, in a
+  `par :any`; the rule of who may close a door ("bad guys never close
+  doors") is the predicate of its `await`.
+- What reads worse: the direction is still a variable (`dir`), since a
+  use decides by it, and the record of the engine must stay, since other
+  code reads it (`sector->specialdata`). The three phases are a dispatch
+  on `dir`, which is the `switch` of C in another form.
+
+### The zombieman
+
+In the table, the zombieman is 33 rows. From the table alone one cannot
+tell that standing leads to chasing, nor chasing to attacking: those
+jumps are inside `A_Look` and `A_Chase`. In the task they are the text:
+
+```
+task Stand (z, born) {                  task Chase (z) {
+    ...                                     loop {
+    loop {                                      loop i in 8 {
+        val j2 = enter(z, S_STND2, look)            val j = enter(z, S_RUN1 + i, chase)
+        if j2 { return(j2) }                        if j { return(j) }
+        await Tics(z)                               await Tics(z)
+        val j1 = enter(z, S_STND, look)         }
+        if j1 { return(j1) }                    }
+        await Tics(z)                       }
+    }
+}
+task Attack (z) {                       task Zombie (z) {
+    enter(z, S_ATK1, face)                  var st = nil
+    await Tics(z)                           loop {
+    enter(z, S_ATK1 + 1, shoot)                 watching :z.jump {
+    await Tics(z)                                   await Life(z, st)
+    enter(z, S_ATK1 + 2, nil)                   }
+    await Tics(z)                               set st = <the row of the jump>
+    S_RUN1                                  }
+}                                       }
+```
+
+- **The jumps from outside are one `watching`.** Pain, death, and the
+  resurrection come from code of the engine (`P_DamageMobj`,
+  `P_KillMobj`) into any row. In the task, they abort the life at any
+  point, and it starts again from the row of the jump. This is the
+  sketch of the plan, with one difference: the plan nested a `watching`
+  per kind of jump (death around pain around chase); in practice every
+  jump replaces the whole behavior, so one `watching` of all jumps, and
+  a dispatch on the row, is what the engine does.
+- **The jumps from inside are not events.** `A_Look` and `A_Chase` call
+  the engine back to set a row while the task runs them, and a running
+  task cannot await. The program keeps the row (`pending`), and the task
+  takes it when the action returns: `if j { return(j) }`. These are the
+  hidden jumps of the table, and in the task they are visible, at each
+  row that may have one. The action of the new row runs after the
+  action that asked for it returns, where C ran it inside; nothing
+  between them reads it, and the demos agree.
+- **The task still writes the row.** The renderer draws the frame of the
+  row, and the engine reads `mobj->state` and `mobj->tics` (the damage
+  compares the state to the spawn state; a death shortens the tics by a
+  random amount). So the wait of a row is the count of `mobj->tics`, as
+  the engine left it, and not a number in the code.
+- **What the table does better**: it is data. It can be written to a
+  file (the saved game: the variant has none), patched (DeHackEd edits
+  the rows), and listed. A row that is not the zombieman's, the gibs of
+  a crushed corpse, is played from the table by the task (`Rows`): the
+  task cannot know in advance all the rows that the engine may give.
+
+### The cost
+
+`tst/count.sh` on the variant, against the main build (millions of
+instructions):
+
+| Demo | Main, no rendering | Variant, no rendering | | Main, rendering | Variant, rendering | |
+|------|--------------------|-----------------------|---|-----------------|--------------------|---|
+| demo1 | 263.4 | 711.7 | 2.7x | 4828.0 | 5277.8 | +9% |
+| demo2 | 186.5 | 499.1 | 2.7x | 3564.7 | 3878.5 | +9% |
+| demo3 | 128.3 | 415.5 | 3.2x | 2068.9 | 2357.7 | +14% |
+
+Where it goes, in demo1 with no rendering (callgrind):
+
+- **The tic of each zombieman**: about 2.2 thousand instructions, where
+  the C thinker steps a row in a few dozen. The event goes to one task
+  (`atm_emit_to`), and is matched down its nested awaits: the
+  `watching` of the jumps, the behavior, the `Tics` of the row.
+- **The broadcast of `:frame`**, about 35 thousand instructions per
+  frame more than in the main build: it visits every door and every
+  zombieman, at all their awaits, although none awaits `:frame`.
+- In the runtime, `emit_trail`, `emit_node`, `kit_next`, and the matches
+  of tags (`leaf_match1`, `a_is`) are 35% of all the instructions.
+
+With rendering, the simulation is a small part of the time, and the
+variant costs 9 to 14% more.

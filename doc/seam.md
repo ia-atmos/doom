@@ -177,3 +177,31 @@ See the comments of those files, and the readme.
 `c/main.c` has `D_DoomFrames` as the loop that the engine had. With it
 in the place of the program, `out/doom-c` and `out/doom-c-tst` are the
 engine with no Atmos, to compare (`make test-c`, and the benchmark).
+
+## The variant (var.atm)
+
+A second program, for the study only (`make var`, `make test-var`). It
+changes nothing of the engine either: two more files leave its build and
+are included, unedited, in the program, with some functions renamed by
+the preprocessor, which the program then defines.
+
+| File | In the variant | The program defines |
+|------|----------------|---------------------|
+| `src/doom/p_doors.c` | Included by `var/doors.atm`, with `EV_DoDoor` and `EV_VerticalDoor` renamed | `EV_DoDoor`, `EV_VerticalDoor`: a task for each normal door, the rest to the originals |
+| `src/doom/p_mobj.c` | Included by `var/zombie.atm`, with `P_SetMobjState`, `P_SpawnMobj`, and `P_SpawnMapThing` renamed | The three: a task for each zombieman, the rest to the originals |
+
+What crosses, besides the main build:
+
+| Direction | What |
+|-----------|------|
+| Engine to program | `T_DoorTask`, the thinker of a door: `:door.tic` to its task. `EV_VerticalDoor` on such a door: `:door.use.player` or `:door.use.monster` to its task |
+| Engine to program | `Z_Thinker`, the thinker of a zombieman: it moves as `P_MobjThinker`, then `:z.tic` to its task. `P_SetMobjState` on a zombieman from outside its action: `:z.jump` to its task |
+| Engine to program | `:door.spawn`, `:z.spawn`: a task is born |
+| Program to engine | `T_MovePlane`, `S_StartSound`, `P_RemoveThinker` (the door); `A_Look`, `A_Chase`, `A_FaceTarget`, `A_PosAttack`, `A_Pain`, `A_Scream`, `A_XScream`, `A_Fall` (the zombieman); the rows of the table, as data |
+
+Every comparison of a thinker with `P_MobjThinker` in the engine
+(`A_BossDeath`, `A_KeenDie`, the teleport, the precache, the saved game)
+does not see the zombieman of the variant, whose thinker is another. None
+of them is about the zombieman, but for the precache of its sprites,
+which are then read when first drawn. The test platform counts it as an
+object (`tst/i_video.c`, a weak symbol).

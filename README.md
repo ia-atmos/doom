@@ -68,6 +68,10 @@ recorded runs, kept for the eye.
 | `cheat` | A screenshot, and `idclev13`, which starts a new game in E1M3 |
 | `secret` | The way back from the secret level E1M9 to E1M4 |
 
+`make var` builds the variant of the study, `out/doom-var-tst` (`var.atm`): a
+door and the zombieman as tasks, with no saved games; `make test-var`
+runs the tests on it, against the same expected outputs.
+
 `tst/bench.sh` measures tics per second, and `tst/count.sh` counts the
 instructions exactly (it needs valgrind); see [`doc/bench.md`](doc/bench.md).
 
