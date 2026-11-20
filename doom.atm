@@ -20,6 +20,10 @@
 ;;      fi.atm      the finale
 ;;      st.atm      the face of the status bar
 ;;      flow.atm    the flow: the title, the demos, the levels
+;;
+;; The program is game.atm, which includes this file and then the loop
+;; of frames (frames.atm). The variant of the study (var.atm) includes
+;; its parts between them.
 
 ```:prelude
 #include "doomdef.h"
@@ -102,25 +106,3 @@ include "wi.atm"
 include "fi.atm"
 include "st.atm"
 include "flow.atm"
-
-;; THE FRAMES
-;;
-;; A frame reads the input, runs the tics of the game that are due, and
-;; draws. When the engine draws a screen that changes the state of the
-;; game (a level begins, an intermission, ...), a wipe takes the next
-;; frames, and the game waits.
-
-loop on :frame {
-    `I_StartFrame();`
-    `TryRunTics(); st = a_chk_aborted(DOOM_ST);`
-    `S_UpdateSounds(players[consoleplayer].mo);`
-    if `:boolean screenvisible && !nodrawers` {
-        val wipe = `:boolean D_Display()`
-        `st = a_chk_aborted(DOOM_ST);`
-        if wipe {
-            await Wipe()
-        } else {
-            `I_FinishUpdate();`
-        }
-    }
-}

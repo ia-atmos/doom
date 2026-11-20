@@ -75,7 +75,7 @@ instructions exactly (it needs valgrind); see [`doc/bench.md`](doc/bench.md).
 
 | Folder | What |
 |--------|------|
-| `doom.atm`, `patch.atm`, `wipe.atm`, `wi.atm`, `fi.atm`, `st.atm`, `flow.atm` | The program in Atmos: the frames, the graphics by name, the screen wipe, the intermission, the finale, the face of the status bar, the flow of the game |
+| `game.atm`, `doom.atm`, `frames.atm`, `patch.atm`, `wipe.atm`, `wi.atm`, `fi.atm`, `st.atm`, `flow.atm` | The program in Atmos (`game.atm` includes the others): the frames, the graphics by name, the screen wipe, the intermission, the finale, the face of the status bar, the flow of the game |
 | `engine/` | A copy of Chocolate Doom. Its first commit has nothing changed, so `git diff 8f5ee02 -- engine/` is every change made to the engine |
 | `c/` | What left the engine, in C as it was, for the engine with no Atmos |
 | `cfg/` | `config.h`, which Chocolate Doom generates with CMake |

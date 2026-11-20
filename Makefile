@@ -60,7 +60,7 @@ $(OUT)/doom-c-tst: $(C_OBJS) $(TST_OBJS)
 # the program in Atmos, through C
 $(OUT)/doom.atm.c: $(wildcard *.atm) $(ATMOS)/atmos
 	@mkdir -p $(dir $@)
-	$(ATMOS)/atmos -c doom.atm > $@
+	$(ATMOS)/atmos -c game.atm > $@
 
 $(OUT)/doom.atm.o: $(OUT)/doom.atm.c
 	$(CC) $(CFLAGS) -I$(ATMOS)/rt -c $< -o $@

@@ -1,0 +1,5 @@
+;; Doom, with its control in Atmos: the program of the main build.
+;; See doom.atm.
+
+include "doom.atm"
+include "frames.atm"

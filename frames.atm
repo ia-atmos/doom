@@ -1,0 +1,21 @@
+;; THE FRAMES
+;;
+;; A frame reads the input, runs the tics of the game that are due, and
+;; draws. When the engine draws a screen that changes the state of the
+;; game (a level begins, an intermission, ...), a wipe takes the next
+;; frames, and the game waits.
+
+loop on :frame {
+    `I_StartFrame();`
+    `TryRunTics(); st = a_chk_aborted(DOOM_ST);`
+    `S_UpdateSounds(players[consoleplayer].mo);`
+    if `:boolean screenvisible && !nodrawers` {
+        val wipe = `:boolean D_Display()`
+        `st = a_chk_aborted(DOOM_ST);`
+        if wipe {
+            await Wipe()
+        } else {
+            `I_FinishUpdate();`
+        }
+    }
+}
