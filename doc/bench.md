@@ -43,6 +43,11 @@ No difference above the error of the measure. These runs have one tic
 per frame, so the program takes one emit per tic: 5026 emits in demo1,
 which do not show in 22 ms.
 
+This was at D1, when the program only ran the frames. Later parts added
+work at each tic (the face, at D6), and the clock of this table cannot
+show it: see "Instructions, exactly" below, where the program costs 22
+to 29% more than C with no rendering.
+
 ## Instructions, exactly
 
 The times above are too short for their clock (15 to 25 ms, with a grain

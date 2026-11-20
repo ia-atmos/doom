@@ -19,6 +19,13 @@ game (the title, the demos, the levels), and the face of the status bar. The com
 in [`doc/study.md`](doc/study.md). The changes to the engine are in
 [`doc/seam.md`](doc/seam.md).
 
+## How it was written
+
+The port was written by Claude (Claude Code), in a session of its own,
+directed by the author of Atmos, who decided the scope and each open
+question; the plan, the open items, and the decisions are in
+[`.claude/plans/`](.claude/plans/).
+
 ## Build and test
 
 It needs a C compiler, `make`, SDL2 (`libsdl2-dev`), and a checkout of
