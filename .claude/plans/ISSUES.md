@@ -68,4 +68,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 52 | D6: stop after the face and go to D7, or go on with the messages | done 2026-11-20 by the session, to be confirmed: D7 |
 | 53 | The tic of the face to its task alone (`atm_emit_to`) | done 2026-11-20; sent to `atmos-lang` |
 | 54 | `tst/count.sh`: the instructions, counted exactly | done 2026-11-20 |
-| 55 | Four new tests: `dm2`, `cheat`, `secret` (and the screenshot) | done 2026-11-20 |
+| 55 | Three new tests: `dm2`, `cheat` (with the screenshot), `secret` | done 2026-11-20 |
