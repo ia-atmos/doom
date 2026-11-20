@@ -1,0 +1,11 @@
+# A deathmatch of one player, which the timer ends after one minute, two
+# levels in a row: two intermissions in one game. The "you are here" of
+# the second map starts as the first left it.
+2250 press space        # goes on to the map
+2400 shot next1.ppm
+2460 press space        # starts E1M2
+4600 shot stats2.ppm    # the second intermission
+4700 press space
+4720 shot map2.ppm
+4740 shot map2b.ppm
+4800 quit
