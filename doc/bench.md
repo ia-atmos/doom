@@ -80,3 +80,19 @@ instructions in C, and the program adds about 11 thousand to it (demo1:
   goes to the task alone (`atm_emit_to`).
 
 With rendering, all of it is less than 2%: the renderer dominates.
+
+## The checks of `pin`
+
+The compiler can build a program without the checks of `pin`
+(`ATMOS_PIN=off`: the same generated C, compiled with `-DATM_PIN_OFF`,
+and the runtime `libatmos-nopin.a`). On 2026-11-21 (compiler `009d99b`),
+demo1, main build:
+
+| | No rendering | Rendering |
+|---|---|---|
+| With the checks (default) | 263.7 M | 4828.2 M |
+| `ATMOS_PIN=off` | 256.3 M | 4819.1 M |
+
+The checks cost 2.8% of the run with no rendering, about 13% of what the
+program adds to the engine all in C (207.9 M), and 0.2% with rendering.
+The sixteen tests are identical without them.
