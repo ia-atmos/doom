@@ -123,3 +123,6 @@ On 2026-11-20, by the rule "work with no input" of the author:
 - 20: `tst/count.sh` (#54).
 - 51: measured and named (#53, #54).
 - 52: settled by the session, to be confirmed (see C).
+
+On 2026-11-22, the author acknowledged the reports ("Ack"): the items of
+section C are read, and the work goes on later (D8, and #33 with him).
