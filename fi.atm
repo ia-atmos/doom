@@ -298,12 +298,12 @@ task FI_Bunny () {
                 patch_draw((320 - (13*8)) // 2, (200 - (8*8)) // 2, "END0")
                 set FI_END = 0
             } else {
-                val stage = math.min(6, (tics - 1180) // 5)
-                if stage > FI_END {
+                val step = math.min(6, (tics - 1180) // 5)
+                if step > FI_END {
                     fi_sound(`:number sfx_pistol`)
-                    set FI_END = stage
+                    set FI_END = step
                 }
-                patch_draw((320 - (13*8)) // 2, (200 - (8*8)) // 2, "END" ++ stage)
+                patch_draw((320 - (13*8)) // 2, (200 - (8*8)) // 2, "END" ++ step)
             }
         }
     }
