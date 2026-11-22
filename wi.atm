@@ -102,7 +102,7 @@ func wi_draw_num (x, y, n, digits) {
         0                               ;; not a number: draws nothing
     } else {
         var cur = x
-        loop _ in d {
+        loop in d {
             set cur -= w
             patch_draw(cur, y, "WINUM" ++ (v % 10))
             set v = v // 10

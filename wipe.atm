@@ -105,7 +105,7 @@ task Wipe () {
     spawn {
         loop on :frame {
             val now = `:number wipe_clock(a_dbl($t))`
-            loop _ in (now - t) {
+            loop in (now - t) {
                 emit :wipe.step
             }
             set t = now
