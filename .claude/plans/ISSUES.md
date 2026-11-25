@@ -26,7 +26,7 @@ no decision needed), **done**, **closed** (settled with no change),
 | 10 | D5: the flow of the game | done 2026-11-16 |
 | 11 | D6: the status bar, the messages, the menus, the automap | work: the face is done; the rest listed for later (#52) |
 | 12 | D7: the variant, a door and the zombieman as tasks | done 2026-11-20 (#56) |
-| 13 | D8: the study and the benchmark | work |
+| 13 | D8: the study and the benchmark | done 2026-11-25 (#59) |
 | 14 | The local clone of the compiler has the old address as its remote | note |
 | 15 | The two replacements of the plan | closed 2026-11-14 |
 | 16 | A permission to build and run the engine in this session | done 2026-11-14 |
@@ -72,3 +72,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 56 | D7 done: the variant, fifteen tests identical, its cost | done 2026-11-20 |
 | 57 | The jumps of a zombieman's own action are taken after it returns | closed: by the session, in the study |
 | 58 | Not reached in the variant: the resurrection, the damage of a standing zombieman, Nightmare | note |
+| 59 | D8 done: the answer, the parts in numbers, the border; the three builds and the memory | done 2026-11-25 |

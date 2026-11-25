@@ -11,7 +11,7 @@ the state of each, is `ISSUES.md`. Numbers that are missing here were
 settled. A rule of the author of 2026-11-18: everything put to him has a
 number, and nothing else is enumerated with bare numbers.
 
-Last update: 2026-11-20.
+Last update: 2026-11-25.
 
 ## A. Decisions waiting for an answer
 
@@ -25,7 +25,6 @@ Each has the option recommended by this session.
 | # | Work | Note |
 |---|------|------|
 | 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap: listed for later | Stopped after the face, by #52 |
-| 13 | D8: the study and the benchmark | Next. `doc/study.md` and `doc/bench.md` have each part as it was done; D8 joins them, with the border |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
 | 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
@@ -34,7 +33,7 @@ Each has the option recommended by this session.
 | 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
 | 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, the secret exit itself (a switch in E1M3), the finale between the levels of Doom 2. Verified on 2026-11-20: `idclev`, a screenshot (`cheat`), the way back from the secret level (`secret`) | The first and the fourth need other WADs |
 | 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
-| 50 | Where to send: coordination, status, and questions for the author, to the session `atmos` (`session_011eECohhJbc4GMpAj3yyeEo`, since 2026-11-24); measurements on the ports and changes of the compiler, to `atmos-lang` (`session_011eECogKVQ7ZzmWCoMST2wK`); `pin`, to `atmos-pin` (`session_011eECogSDhkVfyt7qme5DLh`). A pause until the next credits: no new work, only what arrives | Relayed by `atmos` on 2026-11-24 (atmos-lang#119) |
+| 50 | Where to send: coordination, status, and questions for the author, to the session `atmos` (`session_011eECohhJbc4GMpAj3yyeEo`, since 2026-11-24); measurements on the ports and changes of the compiler, to `atmos-lang` (`session_011eECogKVQ7ZzmWCoMST2wK`); `pin`, to `atmos-pin` (`session_011eECogSDhkVfyt7qme5DLh`). The pause ended on 2026-11-25 | Relayed by `atmos` on 2026-11-24 (atmos-lang#119) |
 
 ## C. Reported or decided, and not acknowledged
 
