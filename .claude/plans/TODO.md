@@ -39,6 +39,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 59 | D8 is done (2026-11-25): `doc/study.md` opens with the answer (the border is the saved game), a table of the parts in lines, tokens, and the state variables that are gone, and the border; `doc/bench.md` has the three builds on the three demos and the peak of the heap (`tst/memory.sh`): the program adds 4.1 MiB, of which 4 MiB is the stack of values of the runtime | By the session, after the pause |
 | 56 | D7 is done (2026-11-20): the variant `var.atm`, with the normal door and the zombieman as tasks; fifteen tests identical to the main build; it costs 2.7 to 3.2 times the instructions with no rendering, 9 to 14% more with it | By the session, after #52; in `doc/study.md` and `doc/seam.md` |
 | 57 | In the variant, the jump of a zombieman's own action (A_Look, A_Chase) is kept and taken when the action returns, so the action of the new row runs after the old action returns, where C ran it inside. Nothing between them reads it, and the demos agree; it is a difference of order that a future action could expose | By the session |
 | 58 | Not reached in the variant: the resurrection of a zombieman (no arch-vile in the shareware episode), and the jump to chase that damage gives to a standing zombieman; a zombieman respawned in Nightmare stays a C object | Note |
