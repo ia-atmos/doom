@@ -96,3 +96,32 @@ demo1, main build:
 The checks cost 2.8% of the run with no rendering, about 13% of what the
 program adds to the engine all in C (207.9 M), and 0.2% with rendering.
 The sixteen tests are identical without them.
+
+## D8: the three builds
+
+On 2026-11-25, compiler `51cabc1`, by `tst/count.sh` and `tst/memory.sh`.
+Millions of instructions; the start of the engine taken out.
+
+| Demo | C | Main build | | Variant | |
+|------|---|------------|---|---------|---|
+| demo1, no rendering | 207.9 | 259.7 | +25% | 714.4 | 3.4x |
+| demo2, no rendering | 144.9 | 183.6 | +27% | 500.6 | 3.5x |
+| demo3, no rendering | 105.2 | 126.8 | +20% | 417.8 | 4.0x |
+| demo1, rendering | 4753.9 | 4823.1 | +1.5% | 5279.5 | +11% |
+| demo2, rendering | 3505.0 | 3560.9 | +1.6% | 3879.3 | +11% |
+| demo3, rendering | 2028.4 | 2066.7 | +1.9% | 2359.8 | +16% |
+
+The variant is compared with C here; against the main build, it is 2.7
+to 3.3 times with no rendering.
+
+The peak of the heap, with no rendering:
+
+| Demo | C | Main build | Variant |
+|------|---|------------|---------|
+| demo1 | 3043 KiB | 7181 KiB | 7258 KiB |
+| demo3 | 3149 KiB | 7287 KiB | 7366 KiB |
+
+Of the 4.1 MiB that the program adds, 4 MiB is the stack of values that
+the runtime of Atmos allocates when it starts (`atm_init`), whatever the
+program; the program itself takes about 100 KiB, and the tasks of the
+doors and zombiemen of the variant about 80 KiB more.

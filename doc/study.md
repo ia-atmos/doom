@@ -1,9 +1,99 @@
 # The study
 
-The comparison of each part that went to Atmos with what it was in C.
-It grows with the port; the plan has the questions.
+What is left for a language of structured reactive concurrency when the
+engine is somebody else's and cannot change, and where is the border.
+Each part that went to Atmos is compared below with what it was in C;
+this first section joins them (D8, 2026-11-25).
 
-Lines are counted with no blank lines and no comments.
+## The answer
+
+- **The border is the saved game.** What a save covers must be data at
+  every tic: the objects and their table of states, the weapons, the
+  doors and lifts. It stays in C, as the state machines it is. What no
+  save covers is control around the simulation, and became tasks: the
+  loop of frames, the screen wipe, the intermission, the finale, the
+  flow of the game.
+- **The control around the simulation reads better as tasks.** The
+  intermission lost its counters of stages (`sp_state`, `ng_state`,
+  `dm_state`, `cnt_pause`, `acceleratestage`) and is a sequence of
+  awaits under one `watching`; the title lost `demosequence` and
+  `pagetic`; the wipe lost its flag and the array of positions. The
+  order of what happens is the order of the text.
+- **A machine that is polled at each tic stays a machine.** The face of
+  the status bar chooses, at each tic, among conditions of the player;
+  in Atmos it is the same arbiter, in one task.
+- **The simulation can become tasks, at a price.** In the variant, the
+  door and the zombieman are tasks, with the demos identical: the jumps
+  from the engine are one `watching`, the hidden jumps of the actions
+  are visible. But the variant has no saved games, its objects must
+  still write their row for the renderer and the engine, and it costs
+  2.7 to 3.3 times the instructions of the simulation with no rendering.
+- **Exactness held at every step.** Sixteen runs, 41,618 frames, compare
+  a checksum of the simulation and of the screen at each frame with the
+  engine all in C, after every commit; the variant passes fifteen of
+  them (all but the save).
+
+## The parts, in numbers
+
+Lines with no blank lines and no comments; tokens are names, numbers,
+strings, and symbols. The Atmos side has two columns: the code in Atmos,
+and the C of its `:prelude` (data and copies of pixels, with no state).
+
+| Part | C | Atmos | C in the `:prelude` | State variables of C that are gone |
+|------|---|-------|---------------------|-----------------------------------|
+| Screen wipe | 256 lines, 1290 tokens | 40, 270 | 40, 278 | the flag `wipe` of the frame, `y[]` of the columns |
+| Intermission | 1219, 6964 | 544, 3775 | 53, 288 | `state`, `sp_state`, `ng_state`, `dm_state`, `cnt_pause`, `acceleratestage`, `bcnt`, `cnt`, the `nexttic` of each animation |
+| Finale | 528, 2800 | 248, 1454 | 183, 1270 | `finalestage`, `finalecount` |
+| Flow of the game | 128, 489 | 122, 552 | 67, 308 | `demosequence`, `pagetic` |
+| Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
+| Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
+| Zombieman, in the variant | 33 rows, 596 | 166, 1137 | 135, 894 | the row as the position (`state`, `nextstate`) |
+
+The wipe counts all of `f_wipe.c`, with a second kind of wipe that the
+game never uses and that was not ported; the door counts the thinker of
+all the kinds of door; the zombieman counts its 33 rows, whose actions
+are the same functions of the engine on both sides. The Atmos side of
+the door and of the zombieman also has the glue that the engine needs
+to meet a task (the renamed functions, the records of the program).
+
+## The border
+
+Why the simulation stays a state machine: the saved game writes the
+number of the row of each object, and the fields of each door, lift,
+and light (`p_saveg.c`). A task suspended in an await is a point in the
+code with its local variables, and cannot be written. To keep saved
+games is to keep the table.
+
+What the table does better, seen from the variant:
+
+- **It is data.** It can be saved, patched (DeHackEd edits its rows),
+  listed, and read by code that knows nothing of the monster (the cast
+  of the finale plays the rows of every monster).
+- **It accepts any row.** The engine may set a row that the zombieman
+  never planned, as the gibs of a crushed corpse; the task must fall
+  back to playing the table for it.
+- **It is cheap.** A thinker steps a row in a few dozen instructions;
+  a tic delivered to a task costs about two thousand in this runtime.
+
+What tasks do better: the order of a behavior is the text (stand,
+chase, attack, pain), the jumps from outside are one `watching`, and
+the jumps that the actions hide in the table are visible at each row
+that may have one.
+
+What a snapshot of tasks would need from the language (an item of the
+compiler, `atmos-lang#45`): the position of each task (which await of
+which block), its local variables, and the native values that it holds
+(here, pointers into the engine), each with a way to be written and
+rebuilt. The runtime of this backend makes the first two possible (a
+task is a record, not a C stack); the third needs every binding to say
+how. Saving only at checkpoints, so that the middle of a level never has
+to be data, is the other way, recorded as a possibility (#36) and not
+taken.
+
+## The parts, one by one
+
+The sections below were written as each part was done, and keep their
+numbers of that day; the table above has the current ones.
 
 ## The screen wipe
 
