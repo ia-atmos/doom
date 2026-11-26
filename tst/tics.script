@@ -1,0 +1,22 @@
+# The clock gives three tics per frame (as a window on a slow machine):
+# the engine runs three tics at each frame, and the screen wipe takes
+# three steps. From the title, through the menus, to a new game, then
+# idclev12 to E1M2: two wipes.
+20  shot title.ppm      # the title, after the first demo was cut
+50  press escape        # opens the main menu
+70  press enter         # New Game
+90  press enter         # Knee-Deep in the Dead
+110 press enter         # Hurt me plenty
+113 shot wipe1.ppm      # the screen melts into the level
+116 shot wipe2.ppm
+150 press i
+152 press d
+154 press c
+156 press l
+158 press e
+160 press v
+162 press 1
+164 press 2
+167 shot wipe3.ppm      # the melt into E1M2
+200 shot e1m2.ppm
+220 quit

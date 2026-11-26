@@ -24,7 +24,7 @@ Each has the option recommended by this session.
 
 | # | Work | Note |
 |---|------|------|
-| 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap: listed for later | Stopped after the face, by #52 |
+| 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap | Approved by the author on 2026-11-26 ("Vá em frente com esses"); in work |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
 | 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
@@ -40,6 +40,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 61 | #33 is verified (2026-11-26): `-tst-tics <n>` gives n tics of the clock per frame and turns `singletics` off (a sleep passes one tic, so that the engine's wait ends); the test `tics` (three per frame, two wipes) is identical to C. Seventeen tests | By the session, approved by the author ("Vá em frente com esses") |
 | 59 | D8 is done (2026-11-25): `doc/study.md` opens with the answer (the border is the saved game), a table of the parts in lines, tokens, and the state variables that are gone, and the border; `doc/bench.md` has the three builds on the three demos and the peak of the heap (`tst/memory.sh`): the program adds 4.1 MiB, of which 4 MiB is the stack of values of the runtime | By the session, after the pause |
 | 56 | D7 is done (2026-11-20): the variant `var.atm`, with the normal door and the zombieman as tasks; fifteen tests identical to the main build; it costs 2.7 to 3.2 times the instructions with no rendering, 9 to 14% more with it | By the session, after #52; in `doc/study.md` and `doc/seam.md` |
 | 57 | In the variant, the jump of a zombieman's own action (A_Look, A_Chase) is kept and taken when the action returns, so the action of the new row runs after the old action returns, where C ran it inside. Nothing between them reads it, and the demos agree; it is a difference of order that a future action could expose | By the session |
@@ -56,7 +57,6 @@ Each has the option recommended by this session.
 | 39 | In `wi.atm`, the graphics are asked to the WAD by name at each draw, and not loaded once as in C: 150 lines less, and nothing changes on screen | Decided by this session |
 | 40 | `ANIM_RANDOM` of `wi_stuff.c` was not ported: no animation of the game is of that kind | Decided by this session |
 | 32 | D2 is done (2026-11-14): the frame and the screen wipe are in `doom.atm`, each column of the melt as a task; the seven tests are identical | Reported to the author in this session |
-| 33 | In the wipe, not verified: more than one tic of the clock per frame (the test platform always gives one). To see it, the game must be played with a window | To check by the author, or with a test clock that skips tics |
 | 34 | The wipe `ColorXForm` of `f_wipe.c` was not ported: the game never uses it | Decided by this session |
 | 28 | D1 is done (2026-11-14): the program in Atmos runs the frames, with two lines changed in the engine (`doc/seam.md`); the seven tests are identical with and without Atmos | Reported to the author in this session |
 | 29 | The `main` stays in the engine, against the plan: `D_DoomMain` cannot return (a local variable of it holds the name of the demo), so the engine calls the program where it had its loop | Decided by this session, after the three demos failed the other way |

@@ -46,7 +46,7 @@ no decision needed), **done**, **closed** (settled with no change),
 | 30 | `c/` keeps in C what leaves the engine | closed |
 | 31 | Two doubts on the manual of the compiler | closed 2026-11-14 |
 | 32 | D2 reported | closed |
-| 33 | The wipe with more than one tic per frame, not verified | open: to check with a window |
+| 33 | The wipe with more than one tic per frame, not verified | done 2026-11-26 (#61) |
 | 34 | The wipe `ColorXForm` not ported | closed |
 | 35 | The status of an emit made inside a call (`a_chk_aborted`) | done at D3 |
 | 36 | Saves at checkpoints only, so that the table of states could go | note: no action until the author says |
@@ -74,3 +74,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 58 | Not reached in the variant: the resurrection, the damage of a standing zombieman, Nightmare | note |
 | 59 | D8 done: the answer, the parts in numbers, the border; the three builds and the memory | done 2026-11-25 |
 | 60 | Screenshots in the report at each big step | rule of the author |
+| 61 | The wipe verified with three tics per frame (`-tst-tics`, test `tics`) | done 2026-11-26 |

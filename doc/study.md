@@ -115,6 +115,11 @@ numbers of that day; the table above has the current ones.
   stops, which in C comes from a flag `done` that a step with nothing to
   move leaves true. In Atmos it is an `await :frame` after the
   `await :all cols`, whose reason is not visible without a comment.
+- **More than one tic per frame** (verified on 2026-11-26, test `tics`):
+  a window on a slow machine gives the wipe several tics of the clock in
+  one frame, and `loop in (now - t)` takes as many steps. The test
+  platform gives three tics per frame with `-tst-tics 3`; the two wipes
+  of the test are identical to C.
 
 ## The intermission
 

@@ -43,7 +43,8 @@ out/doom -iwad wad/DOOM1.WAD
 - `out/doom` is the game, with a window. It has no sound and no network:
   SDL2_mixer and SDL2_net are left out.
 - `out/doom-tst` is the game over a test platform: no window, one tic
-  per frame with no real time, and input from a script. Three files of
+  per frame with no real time (or more, with `-tst-tics <n>`), and
+  input from a script. Three files of
   `tst/` take the place of three files of the engine (`i_video.c`,
   `i_timer.c`, `z_zone.c`).
 - `out/doom-c` and `out/doom-c-tst` are the engine all in C, to compare:

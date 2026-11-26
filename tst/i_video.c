@@ -12,6 +12,11 @@
 //
 // A frame is one call to I_FinishUpdate. Frames are counted from 0.
 //
+// `-tst-tics <n>` (n > 1) advances the clock by n tics per frame, and
+// turns `singletics` off, so the engine runs as with a window on a slow
+// machine: as many tics as the clock gives at each frame, and the screen
+// wipe takes n steps per frame.
+//
 // The script, one command per line (`#` starts a comment):
 //
 //     <frame> down  <key>      the key goes down
@@ -54,6 +59,7 @@
 #include "doom/r_state.h"
 
 extern int tst_clock;
+static int tst_tics = 1;  // tics of the clock per frame (-tst-tics)
 extern int rndindex, prndindex;     // m_random.c
 
 // What the rest of the engine expects from i_video.c.
@@ -489,7 +495,7 @@ void I_FinishUpdate (void)
     }
 
     tst_frame++;
-    tst_clock++;
+    tst_clock += tst_tics;
 
     if (quit)
     {
@@ -516,6 +522,20 @@ void I_InitGraphics (void)
     memset(tst_palette, 0, sizeof(tst_palette));
 
     singletics = true;
+
+    p = M_CheckParmWithArgs("-tst-tics", 1);
+
+    if (p > 0)
+    {
+        tst_tics = atoi(myargv[p + 1]);
+
+        if (tst_tics < 1)
+        {
+            I_Error("-tst-tics: %s: not a number of tics", myargv[p + 1]);
+        }
+
+        singletics = tst_tics == 1;
+    }
 
     p = M_CheckParmWithArgs("-tst-script", 1);
 
