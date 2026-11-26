@@ -1,0 +1,39 @@
+# The messages at the top of the screen: a cheat, the message going
+# after four seconds, the key that shows it again, a message that
+# replaces another, the key that turns the messages off (its message
+# stays; a cheat then shows nothing), and on again. The level starts
+# at frame 41, after the wipe of the warp.
+50 press i
+52 press d
+54 press d
+56 press q
+58 press d
+70 shot iddqd.ppm # Degreelessness Mode On
+197 shot before.ppm # the last tic of the message
+198 shot after.ppm # gone
+220 press enter # shows it again
+225 shot refresh.ppm
+240 press i
+242 press d
+244 press k
+246 press f
+248 press a
+252 shot idkfa.ppm # Very Happy Ammo Added, in its place
+270 press f8 # Messages OFF
+275 shot off.ppm
+290 press i
+292 press d
+294 press d
+296 press q
+298 press d
+302 shot offcheat.ppm # Messages OFF stays; the cheat shows nothing
+460 press f8 # Messages ON
+465 shot on.ppm
+480 press i
+482 press d
+484 press d
+486 press q
+488 press d
+492 shot iddqd2.ppm     # Messages ON must stay: the cheat waits
+605 shot waited.ppm     # then the cheat: Degreelessness Mode On
+640 quit

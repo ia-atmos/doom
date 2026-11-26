@@ -19,6 +19,7 @@
 ;;      wi.atm      the intermission
 ;;      fi.atm      the finale
 ;;      st.atm      the face of the status bar
+;;      hu.atm      the messages and the chat
 ;;      flow.atm    the flow: the title, the demos, the levels
 ;;
 ;; The program is game.atm, which includes this file and then the loop
@@ -105,4 +106,5 @@ include "wipe.atm"
 include "wi.atm"
 include "fi.atm"
 include "st.atm"
+include "hu.atm"
 include "flow.atm"

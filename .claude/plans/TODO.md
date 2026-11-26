@@ -24,7 +24,7 @@ Each has the option recommended by this session.
 
 | # | Work | Note |
 |---|------|------|
-| 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap | Approved by the author on 2026-11-26 ("Vá em frente com esses"); in work |
+| 11 | D6: the messages (`hu_stuff.c`), the menus, and the automap | Approved by the author on 2026-11-26 ("Vá em frente com esses"). The messages are done (#62); next the menus, then the automap |
 | 14 | The local clone of the compiler still has `fsantanna/ceu-atmos` as its remote | The change of the remote was denied by the permission classifier of the session. Harmless: the old address redirects, and fetches name `ia-atmos/lang` explicitly |
 | 27 | The build needs `ATMOS=<checkout of ia-atmos/lang>`; the default is `../lang` | To revisit if the compiler gets an installed form |
 | 19 | An option, not a task: once a part in Atmos is fully faithful (its screens identical), it may relax exactness in favor of expressiveness, as long as the intent of the original author is kept. Not for the simulation, on which the demos and the saved games depend | A rule of the author for all ports, relayed by the compiler session on 2026-11-14. Its recommendations: tag the faithful version first; one small commit per relaxation, saying what it gives up; a document with the deliberate differences |
@@ -40,6 +40,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 62 | The messages and the chat are in `hu.atm` (2026-11-26): the time of a message is a task that starts again, the chat a sequence; two new tests (`hu`, `chat`), nineteen identical. Not verified: the lines of other players | By the session, approved (#11) |
 | 61 | #33 is verified (2026-11-26): `-tst-tics <n>` gives n tics of the clock per frame and turns `singletics` off (a sleep passes one tic, so that the engine's wait ends); the test `tics` (three per frame, two wipes) is identical to C. Seventeen tests | By the session, approved by the author ("Vá em frente com esses") |
 | 59 | D8 is done (2026-11-25): `doc/study.md` opens with the answer (the border is the saved game), a table of the parts in lines, tokens, and the state variables that are gone, and the border; `doc/bench.md` has the three builds on the three demos and the peak of the heap (`tst/memory.sh`): the program adds 4.1 MiB, of which 4 MiB is the stack of values of the runtime | By the session, after the pause |
 | 56 | D7 is done (2026-11-20): the variant `var.atm`, with the normal door and the zombieman as tasks; fifteen tests identical to the main build; it costs 2.7 to 3.2 times the instructions with no rendering, 9 to 14% more with it | By the session, after #52; in `doc/study.md` and `doc/seam.md` |

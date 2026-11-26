@@ -46,6 +46,7 @@ and the C of its `:prelude` (data and copies of pixels, with no state).
 | Finale | 528, 2800 | 248, 1454 | 183, 1270 | `finalestage`, `finalecount` |
 | Flow of the game | 128, 489 | 122, 552 | 67, 308 | `demosequence`, `pagetic` |
 | Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
+| Messages and chat | 277, 1358 | 118, 737 | 171, 998 | `message_counter`; `message_nottobefuckedwith` becomes local to a level; `chat_on` is a position of the task, and stays a variable for the menu |
 | Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
 | Zombieman, in the variant | 33 rows, 596 | 166, 1137 | 135, 894 | the row as the position (`state`, `nextstate`) |
 
@@ -449,6 +450,53 @@ The thirteen tests are identical, and their screens include the face
 (the demos have attacks from monsters, pickups, rapid fire; `death` the
 dead face; `level` god mode). Which of the branches each test reaches was
 not measured.
+
+## The messages and the chat
+
+Done on 2026-11-26, approved by the author with the menus and the
+automap (#11). In `hu.atm`.
+
+| | C (`HU_Start`, `HU_Ticker`, `HU_Responder`) | Atmos (`hu.atm`) |
+|---|---|---|
+| Lines | 277 (with the constants and the variables of the file) | 118, and 171 of C in the `:prelude` |
+| State | `message_counter`, `message_nottobefuckedwith`, `chat_on`, and the statics `altdown`, `num_nobrainers`, `lastmessage` | the position of the task Hud; `fixed`, local to a level; `chat_on` and `message_on` stay variables of C |
+
+- **The time of a message is a task that starts again.** In C, a
+  counter is set to four seconds by three places (a new message, the key
+  that shows it again, a line of chat) and counted down at each tic. In
+  Atmos, each of them emits `:hu.show`, and one trail waits four seconds
+  of tics, or starts again on another `:hu.show`. The counter is gone.
+- **The chat is a sequence.** Off, the keys show the message again or
+  start a line; on, they are typed until enter, escape, or a macro;
+  then off again. `chat_on` stays a variable of C, written by the task,
+  because the menu reads it (the keys of the size of the screen).
+- **A level starts it all again**: one `watching :hu.start`, in the
+  place of the resets of `HU_Start` (and of the counter that C forgot to
+  reset, whose late end changes nothing visible).
+- **What reads worse.** `HU_Responder` must answer at once whether it
+  took the key: the task writes a variable of C (`hu_eat`), that the
+  native function returns after the emit. The order inside a tic
+  (the end of a message, then the new ones) needed two events, `:hu.tic`
+  and `:hu.check`, where C had two statements in one function.
+- **What stayed in C, and why the `:prelude` is large**: the widgets
+  that `HU_Start` makes (the title of the map for the automap, the line
+  of chat), the lines that come from the other players (a buffer per
+  player, fed a character per tic; there is no order of time in it to
+  give to a task), and the macros. The part in Atmos is less than half
+  of the C it replaces, but with its `:prelude` the whole is about as
+  long: this part is mostly widgets, and its control is small.
+
+### What was verified, and what was not
+
+Two new tests, recorded on C (nineteen in all): `hu` (a cheat, its end
+at the exact tic, the key that shows it again, a message that replaces
+another, messages off with its message fixed and a cheat that shows
+nothing, messages on with a cheat that waits for the fixed message to
+go) and `chat` (a net game of one player: a line sent, a character
+erased, a macro, the message shown again). The demos have the messages
+of what the player picks up. Not verified: the lines that come from
+other players and the talks to oneself, which need more than one player
+(as for #37).
 
 ## The variant: a door and the zombieman as tasks
 

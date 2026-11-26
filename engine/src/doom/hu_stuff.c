@@ -75,24 +75,24 @@ const char *player_names[] =
 };
 
 char			chat_char; // remove later.
-static player_t*	plr;
+player_t*	plr;
 patch_t*		hu_font[HU_FONTSIZE];
-static hu_textline_t	w_title;
+hu_textline_t	w_title;
 boolean			chat_on;
-static hu_itext_t	w_chat;
-static boolean		always_off = false;
-static char		chat_dest[MAXPLAYERS];
-static hu_itext_t w_inputbuffer[MAXPLAYERS];
+hu_itext_t	w_chat;
+boolean		always_off = false;
+char		chat_dest[MAXPLAYERS];
+hu_itext_t w_inputbuffer[MAXPLAYERS];
 
-static boolean		message_on;
+boolean		message_on;
 boolean			message_dontfuckwithme;
-static boolean		message_nottobefuckedwith;
+boolean		message_nottobefuckedwith;
 
-static hu_stext_t	w_message;
-static int		message_counter;
+hu_stext_t	w_message;
+int		message_counter;
 
 
-static boolean		headsupactive = false;
+boolean		headsupactive = false;
 
 //
 // Builtin map names.
@@ -355,83 +355,6 @@ void HU_Stop(void)
     headsupactive = false;
 }
 
-void HU_Start(void)
-{
-
-    int		i;
-    const char *s;
-
-    if (headsupactive)
-	HU_Stop();
-
-    plr = &players[consoleplayer];
-    message_on = false;
-    message_dontfuckwithme = false;
-    message_nottobefuckedwith = false;
-    chat_on = false;
-
-    // create the message widget
-    HUlib_initSText(&w_message,
-		    HU_MSGX, HU_MSGY, HU_MSGHEIGHT,
-		    hu_font,
-		    HU_FONTSTART, &message_on);
-
-    // create the map title widget
-    HUlib_initTextLine(&w_title,
-		       HU_TITLEX, HU_TITLEY,
-		       hu_font,
-		       HU_FONTSTART);
-    
-    switch ( logical_gamemission )
-    {
-      case doom:
-	s = HU_TITLE;
-	break;
-      case doom2:
-	 s = HU_TITLE2;
-         // Pre-Final Doom compatibility: map33-map35 names don't spill over
-         if (gameversion <= exe_doom_1_9 && gamemap >= 33)
-         {
-             s = "";
-         }
-	 break;
-      case pack_plut:
-	s = HU_TITLEP;
-	break;
-      case pack_tnt:
-	s = HU_TITLET;
-	break;
-      default:
-         s = "Unknown level";
-         break;
-    }
-
-    if (logical_gamemission == doom && gameversion == exe_chex)
-    {
-        s = HU_TITLE_CHEX;
-    }
-
-    // dehacked substitution to get modified level name
-
-    s = DEH_String(s);
-    
-    while (*s)
-	HUlib_addCharToTextLine(&w_title, *(s++));
-
-    // create the chat widget
-    HUlib_initIText(&w_chat,
-		    HU_INPUTX, HU_INPUTY,
-		    hu_font,
-		    HU_FONTSTART, &chat_on);
-
-    // create the inputbuffer widgets
-    for (i=0 ; i<MAXPLAYERS ; i++)
-	HUlib_initIText(&w_inputbuffer[i], 0, 0, 0, 0, &always_off);
-
-    headsupactive = true;
-
-}
-
 void HU_Drawer(void)
 {
 
@@ -448,79 +371,6 @@ void HU_Erase(void)
     HUlib_eraseSText(&w_message);
     HUlib_eraseIText(&w_chat);
     HUlib_eraseTextLine(&w_title);
-
-}
-
-void HU_Ticker(void)
-{
-
-    int i, rc;
-    char c;
-
-    // tick down message counter if message is up
-    if (message_counter && !--message_counter)
-    {
-	message_on = false;
-	message_nottobefuckedwith = false;
-    }
-
-    if (showMessages || message_dontfuckwithme)
-    {
-
-	// display message if necessary
-	if ((plr->message && !message_nottobefuckedwith)
-	    || (plr->message && message_dontfuckwithme))
-	{
-	    HUlib_addMessageToSText(&w_message, 0, plr->message);
-	    plr->message = 0;
-	    message_on = true;
-	    message_counter = HU_MSGTIMEOUT;
-	    message_nottobefuckedwith = message_dontfuckwithme;
-	    message_dontfuckwithme = 0;
-	}
-
-    } // else message_on = false;
-
-    // check for incoming chat characters
-    if (netgame)
-    {
-	for (i=0 ; i<MAXPLAYERS; i++)
-	{
-	    if (!playeringame[i])
-		continue;
-	    if (i != consoleplayer
-		&& (c = players[i].cmd.chatchar))
-	    {
-		if (c <= HU_BROADCAST)
-		    chat_dest[i] = c;
-		else
-		{
-		    rc = HUlib_keyInIText(&w_inputbuffer[i], c);
-		    if (rc && c == KEY_ENTER)
-		    {
-			if (w_inputbuffer[i].l.len
-			    && (chat_dest[i] == consoleplayer+1
-				|| chat_dest[i] == HU_BROADCAST))
-			{
-			    HUlib_addMessageToSText(&w_message,
-						    DEH_String(player_names[i]),
-						    w_inputbuffer[i].l.l);
-			    
-			    message_nottobefuckedwith = true;
-			    message_on = true;
-			    message_counter = HU_MSGTIMEOUT;
-			    if ( gamemode == commercial )
-			      S_StartSound(0, sfx_radio);
-			    else if (gameversion > exe_doom_1_2)
-			      S_StartSound(0, sfx_tink);
-			}
-			HUlib_resetIText(&w_inputbuffer[i]);
-		    }
-		}
-		players[i].cmd.chatchar = 0;
-	    }
-	}
-    }
 
 }
 
@@ -559,149 +409,4 @@ char HU_dequeueChatChar(void)
     }
 
     return c;
-}
-
-static void StartChatInput(int dest)
-{
-    chat_on = true;
-    HUlib_resetIText(&w_chat);
-    HU_queueChatChar(HU_BROADCAST);
-
-    I_StartTextInput(0, 8, SCREENWIDTH, 16);
-}
-
-static void StopChatInput(void)
-{
-    chat_on = false;
-    I_StopTextInput();
-}
-
-boolean HU_Responder(event_t *ev)
-{
-
-    static char		lastmessage[HU_MAXLINELENGTH+1];
-    const char		*macromessage;
-    boolean		eatkey = false;
-    static boolean	altdown = false;
-    unsigned char 	c;
-    int			i;
-    int			numplayers;
-    
-    static int		num_nobrainers = 0;
-
-    numplayers = 0;
-    for (i=0 ; i<MAXPLAYERS ; i++)
-	numplayers += playeringame[i];
-
-    if (ev->data1 == KEY_RSHIFT)
-    {
-	return false;
-    }
-    else if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT)
-    {
-	altdown = ev->type == ev_keydown;
-	return false;
-    }
-
-    if (ev->type != ev_keydown)
-	return false;
-
-    if (!chat_on)
-    {
-	if (ev->data1 == key_message_refresh)
-	{
-	    message_on = true;
-	    message_counter = HU_MSGTIMEOUT;
-	    eatkey = true;
-	}
-	else if (netgame && ev->data2 == key_multi_msg)
-	{
-	    eatkey = true;
-            StartChatInput(HU_BROADCAST);
-	}
-	else if (netgame && numplayers > 2)
-	{
-	    for (i=0; i<MAXPLAYERS ; i++)
-	    {
-		if (ev->data2 == key_multi_msgplayer[i])
-		{
-		    if (playeringame[i] && i!=consoleplayer)
-		    {
-			eatkey = true;
-                        StartChatInput(i + 1);
-			break;
-		    }
-		    else if (i == consoleplayer)
-		    {
-			num_nobrainers++;
-			if (num_nobrainers < 3)
-			    plr->message = DEH_String(HUSTR_TALKTOSELF1);
-			else if (num_nobrainers < 6)
-			    plr->message = DEH_String(HUSTR_TALKTOSELF2);
-			else if (num_nobrainers < 9)
-			    plr->message = DEH_String(HUSTR_TALKTOSELF3);
-			else if (num_nobrainers < 32)
-			    plr->message = DEH_String(HUSTR_TALKTOSELF4);
-			else
-			    plr->message = DEH_String(HUSTR_TALKTOSELF5);
-		    }
-		}
-	    }
-	}
-    }
-    else
-    {
-	// send a macro
-	if (altdown)
-	{
-	    c = ev->data1 - '0';
-	    if (c > 9)
-		return false;
-	    // fprintf(stderr, "got here\n");
-	    macromessage = chat_macros[c];
-
-	    // kill last message with a '\n'
-	    HU_queueChatChar(KEY_ENTER); // DEBUG!!!
-
-	    // send the macro message
-	    while (*macromessage)
-		HU_queueChatChar(*macromessage++);
-	    HU_queueChatChar(KEY_ENTER);
-
-            // leave chat mode and notify that it was sent
-            StopChatInput();
-            M_StringCopy(lastmessage, chat_macros[c], sizeof(lastmessage));
-            plr->message = lastmessage;
-            eatkey = true;
-	}
-	else
-	{
-            c = ev->data3;
-
-	    eatkey = HUlib_keyInIText(&w_chat, c);
-	    if (eatkey)
-	    {
-		// static unsigned char buf[20]; // DEBUG
-		HU_queueChatChar(c);
-
-		// M_snprintf(buf, sizeof(buf), "KEY: %d => %d", ev->data1, c);
-		//        plr->message = buf;
-	    }
-	    if (c == KEY_ENTER)
-	    {
-		StopChatInput();
-                if (w_chat.l.len)
-                {
-                    M_StringCopy(lastmessage, w_chat.l.l, sizeof(lastmessage));
-                    plr->message = lastmessage;
-                }
-	    }
-	    else if (c == KEY_ESCAPE)
-	    {
-                StopChatInput();
-            }
-	}
-    }
-
-    return eatkey;
 }

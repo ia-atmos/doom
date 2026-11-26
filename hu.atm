@@ -1,0 +1,365 @@
+;; THE MESSAGES OF THE HEADS-UP DISPLAY
+;;
+;; The line of messages at the top of the screen (what the player picks
+;; up, the cheats, the menu), how long each stays, and the chat of a net
+;; game: the line that the player types, and the lines that come from
+;; the others.
+;;
+;; In the engine, it was HU_Start, HU_Ticker, and HU_Responder, of
+;; engine/src/doom/hu_stuff.c. The rest stays there: the font, the
+;; widgets (hu_lib.c), and their drawing.
+;;
+;; The engine emits, to the task Hud only:
+;;
+;;      :hu.start       a level starts (HU_Start): all starts again
+;;      :hu.tic         once per tic of a level (HU_Ticker), first
+;;      :hu.check       then, in the same tic: new messages
+;;      :hu.key         a key goes down, in a level (HU_Responder); it is
+;;                      in `hu_ev`, and a task that takes it sets `hu_eat`
+
+```:prelude
+#include "doomdef.h"
+#include "doomkeys.h"
+#include "doomstat.h"
+#include "dstrings.h"
+#include "sounds.h"
+
+#include "deh_main.h"
+#include "i_input.h"
+#include "i_swap.h"
+#include "hu_lib.h"
+#include "hu_stuff.h"
+#include "m_controls.h"
+#include "m_misc.h"
+#include "s_sound.h"
+
+#define HU_TITLE	(mapnames[(gameepisode-1)*9+gamemap-1])
+#define HU_TITLE2	(mapnames_commercial[gamemap-1])
+#define HU_TITLEP	(mapnames_commercial[gamemap-1 + 32])
+#define HU_TITLET	(mapnames_commercial[gamemap-1 + 64])
+#define HU_TITLE_CHEX   (mapnames_chex[(gameepisode-1)*9+gamemap-1])
+#define HU_TITLEX	0
+#define HU_TITLEY	(167 - SHORT(hu_font[0]->height))
+#define HU_INPUTX	HU_MSGX
+#define HU_INPUTY	(HU_MSGY + HU_MSGHEIGHT*(SHORT(hu_font[0]->height) +1))
+
+// Variables of engine/src/doom/hu_stuff.c.
+extern char *chat_macros[10];
+extern const char *player_names[];
+extern const char *mapnames[];
+extern const char *mapnames_chex[];
+extern const char *mapnames_commercial[];
+extern player_t*	plr;
+extern hu_textline_t	w_title;
+extern boolean		chat_on;
+extern hu_itext_t	w_chat;
+extern boolean		always_off;
+extern char		chat_dest[MAXPLAYERS];
+extern hu_itext_t	w_inputbuffer[MAXPLAYERS];
+extern boolean		message_on;
+extern boolean		message_dontfuckwithme;
+extern hu_stext_t	w_message;
+extern boolean		headsupactive;
+void HU_queueChatChar(char c);
+void HU_Stop(void);
+
+// The task Hud, which alone awaits the events of this part.
+static AVal HU;
+static int HU_ON = 0;
+
+static event_t* hu_ev;          // the key of :hu.key
+static boolean hu_eat;          // the key was taken
+static boolean hu_altdown = false;
+static char hu_lastmessage[HU_MAXLINELENGTH+1];
+
+// Called by the engine when a level starts: the widgets, as they were,
+// and then the task starts again.
+void HU_Start (void) {
+    int i;
+    const char *s;
+
+    doom_start();
+
+    if (headsupactive)
+	HU_Stop();
+
+    plr = &players[consoleplayer];
+    message_on = false;
+    message_dontfuckwithme = false;
+    chat_on = false;
+
+    HUlib_initSText(&w_message, HU_MSGX, HU_MSGY, HU_MSGHEIGHT,
+		    hu_font, HU_FONTSTART, &message_on);
+    HUlib_initTextLine(&w_title, HU_TITLEX, HU_TITLEY, hu_font, HU_FONTSTART);
+
+    switch ( logical_gamemission )
+    {
+      case doom:
+	s = HU_TITLE;
+	break;
+      case doom2:
+	 s = HU_TITLE2;
+         // Pre-Final Doom compatibility: map33-map35 names don't spill over
+         if (gameversion <= exe_doom_1_9 && gamemap >= 33)
+         {
+             s = "";
+         }
+	 break;
+      case pack_plut:
+	s = HU_TITLEP;
+	break;
+      case pack_tnt:
+	s = HU_TITLET;
+	break;
+      default:
+         s = "Unknown level";
+         break;
+    }
+    if (logical_gamemission == doom && gameversion == exe_chex)
+    {
+        s = HU_TITLE_CHEX;
+    }
+    s = DEH_String(s);
+    while (*s)
+	HUlib_addCharToTextLine(&w_title, *(s++));
+
+    HUlib_initIText(&w_chat, HU_INPUTX, HU_INPUTY, hu_font, HU_FONTSTART, &chat_on);
+    for (i=0 ; i<MAXPLAYERS ; i++)
+	HUlib_initIText(&w_inputbuffer[i], 0, 0, 0, 0, &always_off);
+
+    headsupactive = true;
+
+    if (HU_ON) {
+        doom_emit_to(HU, "hu.start");
+    }
+}
+
+// Called by the engine once per tic of a level.
+void HU_Ticker (void) {
+    doom_start();
+    if (HU_ON) {
+        doom_emit_to(HU, "hu.tic");
+        doom_emit_to(HU, "hu.check");
+    }
+}
+
+// Called by the engine with an event, in a level: it returns whether
+// the event was taken. The shifts and the alts are not keys of a chat.
+boolean HU_Responder (event_t *ev) {
+    doom_start();
+    if (ev->data1 == KEY_RSHIFT) {
+        return false;
+    } else if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT) {
+        hu_altdown = ev->type == ev_keydown;
+        return false;
+    }
+    if (ev->type != ev_keydown) {
+        return false;
+    }
+    hu_ev = ev;
+    hu_eat = false;
+    if (HU_ON) {
+        doom_emit_to(HU, "hu.key");
+    }
+    return hu_eat;
+}
+
+// The lines that the other players typed, a character per tic in their
+// commands: true if one ended, to this player, and went to the screen.
+static int hu_incoming (void) {
+    int i, rc, ret = 0;
+    char c;
+    if (!netgame) {
+        return 0;
+    }
+    for (i=0 ; i<MAXPLAYERS; i++) {
+        if (!playeringame[i])
+            continue;
+        if (i != consoleplayer && (c = players[i].cmd.chatchar)) {
+            if (c <= HU_BROADCAST)
+                chat_dest[i] = c;
+            else {
+                rc = HUlib_keyInIText(&w_inputbuffer[i], c);
+                if (rc && c == KEY_ENTER) {
+                    if (w_inputbuffer[i].l.len
+                        && (chat_dest[i] == consoleplayer+1
+                            || chat_dest[i] == HU_BROADCAST)) {
+                        HUlib_addMessageToSText(&w_message,
+                                                DEH_String(player_names[i]),
+                                                w_inputbuffer[i].l.l);
+                        ret = 1;
+                        if ( gamemode == commercial )
+                            S_StartSound(0, sfx_radio);
+                        else if (gameversion > exe_doom_1_2)
+                            S_StartSound(0, sfx_tink);
+                    }
+                    HUlib_resetIText(&w_inputbuffer[i]);
+                }
+            }
+            players[i].cmd.chatchar = 0;
+        }
+    }
+    return ret;
+}
+
+// The line of the chat went out: the player sees it.
+static void hu_sent (void) {
+    if (w_chat.l.len) {
+        M_StringCopy(hu_lastmessage, w_chat.l.l, sizeof(hu_lastmessage));
+        plr->message = hu_lastmessage;
+    }
+}
+
+// A macro of the chat (alt and a digit): the line goes out at once.
+static void hu_macro (int c) {
+    const char *macromessage = chat_macros[c];
+    HU_queueChatChar(KEY_ENTER);        // kill last message with a '\n'
+    while (*macromessage)
+        HU_queueChatChar(*macromessage++);
+    HU_queueChatChar(KEY_ENTER);
+    M_StringCopy(hu_lastmessage, chat_macros[c], sizeof(hu_lastmessage));
+    plr->message = hu_lastmessage;
+}
+```
+
+;; The talks of the player to itself, in a game of more than two: the
+;; count lasts as long as the program.
+var hu_nobrainers = 0
+
+func hu_talk_to_self () {
+    set hu_nobrainers += 1
+    val n = hu_nobrainers
+    ifs {
+        n < 3  => `plr->message = DEH_String(HUSTR_TALKTOSELF1);`
+        n < 6  => `plr->message = DEH_String(HUSTR_TALKTOSELF2);`
+        n < 9  => `plr->message = DEH_String(HUSTR_TALKTOSELF3);`
+        n < 32 => `plr->message = DEH_String(HUSTR_TALKTOSELF4);`
+        else   => `plr->message = DEH_String(HUSTR_TALKTOSELF5);`
+    }
+}
+
+;; Who a key starts a chat with (HU_BROADCAST for all, or a player
+;; plus one), or nil.
+func hu_chat_with () {
+    ifs {
+        !`:boolean netgame` => nil
+        `:boolean hu_ev->data2 == key_multi_msg` => `:number HU_BROADCAST`
+        `:boolean (playeringame[0] + playeringame[1] + playeringame[2] + playeringame[3]) > 2` => {
+            loop i in `:number MAXPLAYERS` {
+                if `:boolean hu_ev->data2 == key_multi_msgplayer[(int) a_dbl($i)]` {
+                    if `:boolean playeringame[(int) a_dbl($i)]` && (i != `:number consoleplayer`) {
+                        break (i + 1)
+                    } else {
+                        if i == `:number consoleplayer` {
+                            hu_talk_to_self()
+                        }
+                    }
+                }
+            }
+        }
+        else => nil
+    }
+}
+
+val HU_MSGTIMEOUT = `:number HU_MSGTIMEOUT`
+
+task Hud () {
+    val me = task
+    `HU = $me; HU_ON = 1;`
+
+    await :hu.start
+    loop {
+        watching :hu.start {
+            ;; A message that came while another that must not be
+            ;; replaced is on screen (from the menu, or from the chat)
+            ;; waits for it to go.
+            var fixed = false
+
+            par {
+                ;; The time of a message on screen: shown, or shown
+                ;; again, it stays for 4 seconds.
+                loop {
+                    await :hu.show
+                    loop {
+                        val again = par :any {
+                            await (HU_MSGTIMEOUT, :hu.tic)
+                            false
+                        } with {
+                            await :hu.show
+                            true
+                        }
+                        while again
+                    }
+                    `message_on = false;`
+                    set fixed = false
+                }
+            } with {
+                ;; The new messages: of the player, then of the chat.
+                loop on :hu.check {
+                    if `:boolean showMessages || message_dontfuckwithme` {
+                        if `:boolean plr->message` && ((!fixed) || `:boolean message_dontfuckwithme`) {
+                            `HUlib_addMessageToSText(&w_message, 0, plr->message);`
+                            `plr->message = 0;`
+                            `message_on = true;`
+                            set fixed = `:boolean message_dontfuckwithme`
+                            `message_dontfuckwithme = 0;`
+                            emit @me (:hu.show)
+                        }
+                    }
+                    if `:boolean hu_incoming()` {
+                        set fixed = true
+                        `message_on = true;`
+                        emit @me (:hu.show)
+                    }
+                }
+            } with {
+                ;; The keys: the message again, and the chat.
+                loop {
+                    val dest = loop on :hu.key {
+                        if `:boolean hu_ev->data1 == key_message_refresh` {
+                            `message_on = true;`
+                            `hu_eat = true;`
+                            emit @me (:hu.show)
+                        } else {
+                            val who = hu_chat_with()
+                            until who, who
+                        }
+                    }
+
+                    ;; The chat: a line typed to `dest`, which the
+                    ;; original never tells to the others (it always
+                    ;; queues HU_BROADCAST).
+                    `hu_eat = true;`
+                    `chat_on = true;`
+                    `HUlib_resetIText(&w_chat);`
+                    `HU_queueChatChar(HU_BROADCAST);`
+                    `I_StartTextInput(0, 8, SCREENWIDTH, 16);`
+
+                    loop on :hu.key {
+                        if `:boolean hu_altdown` {
+                            val c = `:number (unsigned char) (hu_ev->data1 - '0')`
+                            if c <= 9 {
+                                `hu_macro((int) a_dbl($c));`
+                                `hu_eat = true;`
+                                break
+                            }
+                        } else {
+                            val c = `:number (unsigned char) hu_ev->data3`
+                            `hu_eat = HUlib_keyInIText(&w_chat, (unsigned char) a_dbl($c));`
+                            `if (hu_eat) HU_queueChatChar((unsigned char) a_dbl($c));`
+                            if c == `:number KEY_ENTER` {
+                                `hu_sent();`
+                                break
+                            }
+                            until c == `:number KEY_ESCAPE`
+                        }
+                    }
+                    `chat_on = false;`
+                    `I_StopTextInput();`
+                }
+            }
+        }
+    }
+}
+
+spawn Hud()

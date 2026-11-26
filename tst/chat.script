@@ -1,0 +1,27 @@
+# The chat of a net game (of one player): a line typed and sent, a line
+# with a character erased, a macro (alt and a digit), and the key that
+# shows the last message again. The lines that come from other players
+# need more than one, and are not here. The level starts at frame 41,
+# after the wipe of the warp.
+50 press t # starts a line to all
+54 press h
+56 press i
+58 shot typing.ppm
+60 press enter # sent: the player sees it
+64 shot sent.ppm
+100 press t
+104 press x
+106 press y
+108 press backspace
+110 shot erased.ppm
+112 press enter
+116 shot sent2.ppm
+140 press t
+144 down alt
+146 press 1 # the first macro
+148 up alt
+152 shot macro.ppm
+300 shot gone.ppm
+310 press enter # again
+314 shot refresh.ppm
+340 quit
