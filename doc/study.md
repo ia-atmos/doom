@@ -7,8 +7,8 @@ this first section joins them (D8, 2026-11-25).
 
 ## The answer
 
-- **The border is the saved game.** What a save covers must be data at
-  every tic: the objects and their table of states, the weapons, the
+- **The border is the saved game**, at any tic (the behavior, not the
+  format of its file). What a save covers must be data at every tic: the objects and their table of states, the weapons, the
   doors and lifts. It stays in C, as the state machines it is. What no
   save covers is control around the simulation, and became tasks: the
   loop of frames, the screen wipe, the intermission, the finale, the
@@ -61,11 +61,17 @@ to meet a task (the renamed functions, the records of the program).
 
 ## The border
 
-Why the simulation stays a state machine: the saved game writes the
-number of the row of each object, and the fields of each door, lift,
-and light (`p_saveg.c`). A task suspended in an await is a point in the
-code with its local variables, and cannot be written. To keep saved
-games is to keep the table.
+Why the simulation stays a state machine: the player can save the game
+at any tic, and load it later, and play on from there. That is the
+behavior to keep, and not the format of the file: on 2026-11-26 the
+author said that the files the program writes for itself are its own to
+change (a table of Atmos, written with `X.dump`, would do). So the
+border is not the format of `p_saveg.c` (the number of the row of each
+object, the fields of each door, lift, and light), but what any format
+must hold: the whole state of the simulation at any tic, as data. A
+task suspended in an await is a point in the code with its local
+variables, and cannot be written in any format. To keep the save at any
+tic is to keep the simulation as data, that is, the table.
 
 What the table does better, seen from the variant:
 
@@ -91,7 +97,8 @@ rebuilt. The runtime of this backend makes the first two possible (a
 task is a record, not a C stack); the third needs every binding to say
 how. Saving only at checkpoints, so that the middle of a level never has
 to be data, is the other way, recorded as a possibility (#36) and not
-taken.
+taken: it changes what the player can do, which the fidelity to the
+behavior forbids.
 
 ## The parts, one by one
 

@@ -40,6 +40,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 79 | #74, the study: the border is the save at any tic (the behavior), not the format of `p_saveg.c`, which the author freed; a snapshot of tasks is still what is missing. The variant and the face, to review by the same measure, are left: the variant is a study of the simulation as tasks, which the border keeps in C; the face is an arbiter already in one task | By the session, approved (#74) |
 | 78 | #74, the bugs: two reads out of bounds of the renderer are fixed in `engine/` (a sprite past its post; a short wall texture past its column), recorded in `doc/bugs.md`; AddressSanitizer finds none left in the 21 tests; the test platform no longer pads the blocks with zeros; the expected outputs recorded again on C (only pixels changed, in 13 tests) | By the session, approved (#74) |
 | 77 | #74, the automap: the keys are tables of lambdas by the bound code; its state in a table `A`. `am_map.c` stays (its drawing and geometry are arithmetic of the engine, not control) | By the session, approved (#74) |
 | 76 | #74, the messages: all of `hu_stuff.c` is in `hu.atm` (out of the build of the program, not edited): the state in a table `H`, the chat as a task, the names of the maps as tables, the menu asks for a message that stays by `H.stay`; the seam of #62 is undone. Twenty-one tests identical | By the session, approved (#74) |

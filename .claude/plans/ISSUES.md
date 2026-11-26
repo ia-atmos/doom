@@ -87,8 +87,9 @@ no decision needed), **done**, **closed** (settled with no change),
 | 71 | Excerpt, idiomatic: the closed map (`am.atm:204`) | shown |
 | 72 | Excerpt, bad: a guard repeated in the tic of the map (`am.atm:214`), fixed | shown, fixed |
 | 73 | The general instruction for the ports: answer and grade | asked |
-| 74 | The redo after #73 | approved 2026-11-26; in work |
+| 74 | The redo after #73 | done 2026-11-26 (#75 to #79) |
 | 75 | The menus redone as Atmos (#74) | done 2026-11-26 |
 | 76 | The messages redone as Atmos (#74) | done 2026-11-26 |
 | 77 | The keys of the automap as tables (#74) | done 2026-11-26 |
 | 78 | Two reads out of bounds of the renderer fixed (`doc/bugs.md`) | done 2026-11-26 |
+| 79 | The border restated: the save at any tic, not its format | done 2026-11-26 |
