@@ -244,7 +244,7 @@ task FI_Text (text) {
     var chars = 0
 
     spawn {
-        await(10, :fi.tic)
+        await (10, :fi.tic)
         loop on 3, :fi.tic {
             set chars += 1
         }
@@ -313,20 +313,13 @@ task FI_Art (episode) {
     if episode == 3 {
         await FI_Bunny()
     } else {
-        var name = nil
-        if episode == 1 {
-            set name = if `:boolean gameversion >= exe_ultimate` => "CREDIT" => "HELP2"
+        val name = ifs {
+            episode == 1 => if `:boolean gameversion >= exe_ultimate` => "CREDIT" => "HELP2"
+            episode == 2 => "VICTORY2"
+            episode == 4 => "ENDPIC"
         }
-        if episode == 2 {
-            set name = "VICTORY2"
-        }
-        if episode == 4 {
-            set name = "ENDPIC"
-        }
-        loop on :fi.draw {
-            if name {
-                patch_draw(0, 0, name)
-            }
+        loop on :fi.draw until name {
+            patch_draw(0, 0, name)
         }
     }
 }
@@ -379,7 +372,7 @@ task FI_Cast () {
     loop {
         ;; the tics of the row, unless a key kills the monster first
         val done = watching :fi.key until !dying {
-            await(math.max(1, tics), :fi.tic)
+            await (math.max(1, tics), :fi.tic)
         }
 
         if !done {
@@ -505,7 +498,7 @@ spawn {
                 ;; Doom 2: after 50 tics, a button of any player skips
                 ;; the text
                 if `:boolean gamemode == commercial` {
-                    await(52, :fi.tic)
+                    await (52, :fi.tic)
                     loop {
                         var pressed = false
                         loop i in 4 {

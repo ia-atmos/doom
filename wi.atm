@@ -286,10 +286,10 @@ task WI_Anim (i, a, stats) {
 
     par {
         if kind == :always {
-            await((`:number M_Random()` % period) + 1, :wi.tic)
+            await ((`:number M_Random()` % period) + 1, :wi.tic)
             loop {
                 set frame = (frame + 1) % frames
-                await(period, :wi.tic)
+                await (period, :wi.tic)
             }
         } else {
             ;; the animation 7 of the episode 1 is hidden in the
@@ -298,17 +298,15 @@ task WI_Anim (i, a, stats) {
             if (WI.next == level) && (!(stats && (i == 7))) {
                 loop {
                     set frame = math.min(frame + 1, frames - 1)
-                    await(period, :wi.tic)
+                    await (period, :wi.tic)
                 }
             }
         }
     } with {
         ;; the animation 8 of the episode 1 has the graphics of the 4
         val j = if (WI.epsd == 1) && (i == 8) => 4 => i
-        loop on :wi.draw {
-            if frame >= 0 {
-                patch_draw(x, y, string.format("WIA%d%02d%02d", WI.epsd, j, frame))
-            }
+        loop on :wi.draw until frame >= 0 {
+            patch_draw(x, y, string.format("WIA%d%02d%02d", WI.epsd, j, frame))
         }
     }
 }
@@ -380,15 +378,14 @@ task WI_Stats () {
         }
     }
 
-    var skipped = true
-    watching :wi.accel {
-        await(35, :wi.tic)
+    val done = watching :wi.accel {
+        await (35, :wi.tic)
         await WI_Count(cnt, "kills", WI.kills)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         await WI_Count(cnt, "items", WI.items)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         await WI_Count(cnt, "secret", WI.secret)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
 
         ;; the time and the par, 3 seconds at each tic
         loop on :wi.tic {
@@ -398,12 +395,10 @@ task WI_Stats () {
             until (cnt.par >= WI.par) && (cnt.time >= WI.time)
         }
         wi_sound(`:number sfx_barexp`)
-        await(35, :wi.tic)
-
-        set skipped = false
+        await (35, :wi.tic)
     }
 
-    if skipped {
+    if !done {
         set cnt.kills  = WI.kills
         set cnt.items  = WI.items
         set cnt.secret = WI.secret
@@ -493,24 +488,22 @@ task WI_Stats_Net () {
         }
     }
 
-    var skipped = true
-    watching :wi.accel {
+    val done = watching :wi.accel {
         val bang = `:number sfx_barexp`
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         await WI_Count_All(cnts, "kills", "kills", 2, bang)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         await WI_Count_All(cnts, "items", "items", 2, bang)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         await WI_Count_All(cnts, "secret", "secret", 2, bang)
-        await(35, :wi.tic)
+        await (35, :wi.tic)
         if frags {
             await WI_Count_All(cnts, "frags", "total", 1, `:number sfx_pldeth`)
-            await(35, :wi.tic)
+            await (35, :wi.tic)
         }
-        set skipped = false
     }
 
-    if skipped {
+    if !done {
         loop _, p in WI.players {
             val cnt = cnts@(p.i)
             set cnt.kills  = p.kills
@@ -573,9 +566,8 @@ task WI_Stats_Deathmatch () {
         }
     }
 
-    var skipped = true
-    watching :wi.accel {
-        await(35, :wi.tic)
+    val done = watching :wi.accel {
+        await (35, :wi.tic)
         loop on :wi.tic {
             wi_sound_count()
             var ticking = false
@@ -594,11 +586,10 @@ task WI_Stats_Deathmatch () {
             until !ticking
         }
         wi_sound(`:number sfx_barexp`)
-        await(35, :wi.tic)
-        set skipped = false
+        await (35, :wi.tic)
     }
 
-    if skipped {
+    if !done {
         loop _, p in WI.players {
             loop _, q in WI.players {
                 set cnts@(p.i)@(q.i) = p.frags@(q.i)
@@ -675,21 +666,21 @@ task WI_Map () {
                 ;; on for 20 tics and off for 12 (the first time, on for 12)
                 await :wi.tic
                 set WI_POINTER = true
-                await(12, :wi.tic)
+                await (12, :wi.tic)
                 loop {
                     set WI_POINTER = false
-                    await(12, :wi.tic)
+                    await (12, :wi.tic)
                     set WI_POINTER = true
-                    await(20, :wi.tic)
+                    await (20, :wi.tic)
                 }
             }
         }
     }
 
     set leaving = true
-    await(10, :wi.tic)
+    await (10, :wi.tic)
     `G_WorldDone();`
-    await(false)                ;; the engine takes some tics to leave
+    await false                ;; the engine takes some tics to leave
 }
 
 ;; AN INTERMISSION
@@ -713,10 +704,8 @@ task WI_Intermission () {
     }
 
     spawn {
-        loop on :wi.tic {
-            if `:boolean wi_accel()` {
-                emit :wi.accel
-            }
+        loop on :wi.tic until `:boolean wi_accel()` {
+            emit :wi.accel
         }
     }
 

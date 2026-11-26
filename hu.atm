@@ -384,7 +384,7 @@ task Hud () {
                         await (HU_MSGTIMEOUT, :hu.tic)
                         `message_on = false;`
                         set H.fixed = false
-                        await(false)
+                        await false
                     }
                 }
             } with {
@@ -399,13 +399,13 @@ task Hud () {
                             `message_on = true;`
                             set H.fixed = H.stay
                             set H.stay  = false
-                            emit @me (:hu.show)
+                            emit @me :hu.show
                         }
                     }
                     if `:boolean netgame && hu_incoming()` {
                         set H.fixed = true
                         `message_on = true;`
-                        emit @me (:hu.show)
+                        emit @me :hu.show
                     }
                 }
             } with {
@@ -415,7 +415,7 @@ task Hud () {
                         if `:boolean hu_ev->data1 == key_message_refresh` {
                             `message_on = true;`
                             `hu_eat = true;`
-                            emit @me (:hu.show)
+                            emit @me :hu.show
                         } else {
                             until hu_chat_with(`:number hu_ev->data2`) != nil
                         }

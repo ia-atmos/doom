@@ -40,6 +40,9 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 89 | A standing rule of the author (`atmos#29`, 2026-11-26): read `ia-atmos/lang` `.claude/plans/IDIOMS.md` before writing Atmos; a rule that comes out of a review of an excerpt of this session goes to `atmos`, with its source and a before and an after. Applied on 2026-11-26: `emit`/`await` with no parentheses, the counted awaits with a space, three filters into the pattern of their loop, two runs of exclusive `if` into `ifs`, and the three flags `skipped` of the intermission replaced by the boolean that `watching` now gives. Twenty-one tests identical | Relayed by `atmos` on 2026-11-26 |
+| 90 | Excerpt, idiomatic: the statistics of one player run until a key, and the boolean of the `watching` says if they were cut, `wi.atm:381` | Shown on 2026-11-26 |
+| 91 | Excerpt, bad: `await (35, :wi.tic)` repeated between the counters, `wi.atm:383`. Why: a pause in tics is a counted pattern of an event, not a time; with no clock of the game in the environment, one second is 35 tics written at each place. Better: a clock of the environment in tics, as `await 1s` (the environment) | Shown on 2026-11-26 |
 | 88 | The indexes by a plain name lose their parentheses (`@(key)` to `@key`): 8 lines, all in `wi.atm`; two counters became `+=`. Twenty-one tests identical, nineteen on the variant | A request of the author for every project, relayed by `atmos` on 2026-11-26 |
 | 86 | Excerpt, idiomatic: a counter of the intermission, `wi.atm:345`, `set cnt@key += 2` | Shown on 2026-11-26 |
 | 87 | Excerpt, bad: `WI_PLACES@(WI.epsd)@n`, `wi.atm:624`. Why: the index by a field of a table needs parentheses, so one chain mixes both forms. Better: a table of the episode kept in a local (the port), or `@` taking a path of fields (the language) | Shown on 2026-11-26 |

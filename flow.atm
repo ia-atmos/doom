@@ -135,9 +135,9 @@ task Page (name, tics) {
             patch_draw(0, 0, page)
         }
     }
-    await((tics + 1), :page.tic)
+    await (tics + 1, :page.tic)
     `D_AdvanceDemo();`
-    await(false)                    ;; stays on screen until the next step
+    await false                    ;; stays on screen until the next step
 }
 
 func title_music () {
@@ -151,7 +151,7 @@ func title_music () {
 ;; A demo of the game: the engine plays it, as a game (see Game below).
 task Demo (name) {
     `G_DeferedPlayDemo(DEH_String(A_STR_OF($name)->s));`
-    await(false)
+    await false
 }
 
 task Title () {
@@ -200,16 +200,12 @@ task Title () {
 ;; after the last level of an episode.
 
 task Game (start) {
-    if start == "g.newgame" {
-        `G_DoNewGame();`
+    ifs {
+        start == "g.newgame"  => `G_DoNewGame();`
+        start == "g.loadgame" => `FLOW_LOAD();`
+        start == "g.playdemo" => `G_DoPlayDemo();`
+        ;; "g.warp": the engine started the game by itself (-warp)
     }
-    if start == "g.loadgame" {
-        `FLOW_LOAD();`
-    }
-    if start == "g.playdemo" {
-        `G_DoPlayDemo();`
-    }
-    ;; "g.warp": the engine started the game by itself (-warp)
 
     loop {
         await :g.completed          ;; the level ends

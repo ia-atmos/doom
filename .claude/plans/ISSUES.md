@@ -102,3 +102,6 @@ no decision needed), **done**, **closed** (settled with no change),
 | 86 | Excerpt, idiomatic: `set cnt@key += 2` (`wi.atm:345`) | shown |
 | 87 | Excerpt, bad: `WI_PLACES@(WI.epsd)@n` (`wi.atm:624`) | shown |
 | 88 | `@(name)` to `@name`, in `wi.atm` | done 2026-11-26 |
+| 89 | Read IDIOMS.md before writing Atmos; send new rules to `atmos` | rule of the author |
+| 90 | Excerpt, idiomatic: the boolean of `watching` (`wi.atm:381`) | shown |
+| 91 | Excerpt, bad: `await (35, :wi.tic)` as a second (`wi.atm:383`) | shown |

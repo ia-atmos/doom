@@ -308,7 +308,7 @@ task Death (z) {
     enter(z, S_DIE1 + 3, nil)
     await Tics(z)
     enter(z, S_DIE1 + 4, nil)
-    await(false)
+    await false
 }
 
 ;; Dies in pieces: 9 rows, and the last stays.
@@ -324,7 +324,7 @@ task XDeath (z) {
         await Tics(z)
     }
     enter(z, S_XDIE1 + 8, nil)
-    await(false)
+    await false
 }
 
 ;; Rises from the dead (an arch-vile), and walks.
@@ -345,13 +345,13 @@ task Rows (z, st0) {
         val j = `:number z_act_row(ZZ($z), a_dbl($st))`
         if j != 0 { return(j) }
         if `:boolean states[(int)a_dbl($st)].tics == -1` {
-            await(false)
+            await false
         }
         await Tics(z)
         set st = `:number states[(int)a_dbl($st)].nextstate`
         if st == `:number S_NULL` {
             `P_RemoveMobj(ZZ($z)->mo);`
-            await(false)
+            await false
         }
     }
 }

@@ -71,7 +71,7 @@ val WIPE_COLS = 160     ;; the columns, 2 pixels wide
 ;; A column waits `wait` steps, and then falls: slow at first, 1 row
 ;; more at each step, and then 8 rows per step.
 task Column (col, wait) {
-    await(wait, :wipe.step)
+    await (wait, :wipe.step)
     var y = 0
     loop on :wipe.step {
         val dy = if y < 16 => y+1 => 8

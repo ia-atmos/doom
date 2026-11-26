@@ -188,7 +188,7 @@ task Door (d) {
             } else {
                 if dir == 0 {
                     `DOOR($d)->door.direction = 0;`
-                    await(150, :door.tic)
+                    await (150, :door.tic)
                     `door_sound(DOOR($d), sfx_dorcls);`
                     (-1)
                 } else {
