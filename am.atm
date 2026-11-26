@@ -201,23 +201,20 @@ task Automap () {
     `AUTOMAP = $me; AM_ON = 1;`
     loop {
         ;; closed: only the key of the map (or the button) is taken
-        loop on :am.key {
-            until `:boolean am_joy() || am_key(key_map_toggle)`
-        }
+        await :am.key until `:boolean am_joy() || am_key(key_map_toggle)`
         `AM_Start();`
         `viewactive = false;`
         `am_eat = true;`
 
-        ;; open
+        ;; open (the watching awakes before its body: a tic that finds the
+        ;; map closed by the engine moves nothing)
         watching :am.tic until !`:boolean automapactive` {
             par :any {
                 loop on :am.tic {
-                    if `:boolean automapactive` {
-                        `amclock++;`
-                        `if (followplayer) AM_doFollowPlayer();`
-                        `if (ftom_zoommul != FRACUNIT) AM_changeWindowScale();`
-                        `if (m_paninc.x || m_paninc.y) AM_changeWindowLoc();`
-                    }
+                    `amclock++;`
+                    `if (followplayer) AM_doFollowPlayer();`
+                    `if (ftom_zoommul != FRACUNIT) AM_changeWindowScale();`
+                    `if (m_paninc.x || m_paninc.y) AM_changeWindowLoc();`
                 }
             } with {
                 loop on :am.key {
