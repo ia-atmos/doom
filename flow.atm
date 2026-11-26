@@ -266,9 +266,10 @@ spawn {
             set start = await <:g.newgame || :g.loadgame || :g.playdemo>
         }
         ;; a new game (or the title) ends the one that runs
-        set start = watching <:g.newgame || :g.loadgame || :g.playdemo || :title.start> {
+        val _, next = watching <:g.newgame || :g.loadgame || :g.playdemo || :title.start> {
             await Game(start)
         }
+        set start = next
         if start == "title.start" {
             set start = nil
         }
