@@ -93,3 +93,9 @@ no decision needed), **done**, **closed** (settled with no change),
 | 77 | The keys of the automap as tables (#74) | done 2026-11-26 |
 | 78 | Two reads out of bounds of the renderer fixed (`doc/bugs.md`) | done 2026-11-26 |
 | 79 | The border restated: the save at any tic, not its format | done 2026-11-26 |
+| 80 | Excerpt, idiomatic: the end of the game awaited (`menu.atm:755`) | shown |
+| 81 | Excerpt, bad: two `solo` for one condition (`menu.atm:466`) | shown |
+| 82 | Excerpt, idiomatic: the name of the map by an `ifs` (`hu.atm:265`) | shown |
+| 83 | Excerpt, bad: the names of the maps read from C one by one (`hu.atm:249`) | shown |
+| 84 | Excerpt, idiomatic: the keys of the automap as a table (`am.atm:166`) | shown |
+| 85 | Excerpt, bad: a pan of the automap in C (`am.atm:137`) | shown |
