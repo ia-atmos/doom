@@ -278,20 +278,14 @@ task Hud () {
             par {
                 ;; The time of a message on screen: shown, or shown
                 ;; again, it stays for 4 seconds.
+                await :hu.show
                 loop {
-                    await :hu.show
-                    loop {
-                        val again = par :any {
-                            await (HU_MSGTIMEOUT, :hu.tic)
-                            false
-                        } with {
-                            await :hu.show
-                            true
-                        }
-                        while again
+                    watching :hu.show {
+                        await (HU_MSGTIMEOUT, :hu.tic)
+                        `message_on = false;`
+                        set fixed = false
+                        await(false)
                     }
-                    `message_on = false;`
-                    set fixed = false
                 }
             } with {
                 ;; The new messages: of the player, then of the chat.

@@ -378,12 +378,9 @@ task FI_Cast () {
     var tics = `:number states[(int)a_dbl($st)].tics` - 1
     loop {
         ;; the tics of the row, unless a key kills the monster first
-        val key = par :any {
+        val key = watching :fi.key until !dying {
             await(math.max(1, tics), :fi.tic)
             false
-        } with {
-            await :fi.key until !dying
-            true
         }
 
         if key {
