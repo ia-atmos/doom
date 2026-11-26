@@ -124,74 +124,83 @@ static void am_mark (void) {
 }
 ```
 
-;; The window as large as the map, or back: it lasts as long as the
-;; program, as the static of C (a map closed by the engine keeps it).
-var am_bigstate = false
+;; THE STATE OF THE MAP: the window as large as the map, or back; it
+;; lasts as long as the program, as the static of C (a map closed by the
+;; engine keeps it). The rest is in C, where the drawing reads it.
+pin A = [
+    big = false,
+]
 
-;; A key down, with the map open (not the key of the map).
-func am_down () {
-    `am_eat = true;`
-    val key = `:number am_ev->data1`
+;; A pan, while its key is held: on an axis (:x or :y), to a side (1 or
+;; -1), or 0 when the key goes up. Not when the map follows the player:
+;; then the key is not taken.
+func pan (axis, dir) {
     ifs {
-        key == `:number key_map_east` => {
-            `if (!followplayer) m_paninc.x = FTOM(F_PANINC); else am_eat = false;`
-        }
-        key == `:number key_map_west` => {
-            `if (!followplayer) m_paninc.x = -FTOM(F_PANINC); else am_eat = false;`
-        }
-        key == `:number key_map_north` => {
-            `if (!followplayer) m_paninc.y = FTOM(F_PANINC); else am_eat = false;`
-        }
-        key == `:number key_map_south` => {
-            `if (!followplayer) m_paninc.y = -FTOM(F_PANINC); else am_eat = false;`
-        }
-        key == `:number key_map_zoomout` => {
-            `mtof_zoommul = M_ZOOMOUT; ftom_zoommul = M_ZOOMIN;`
-        }
-        key == `:number key_map_zoomin` => {
-            `mtof_zoommul = M_ZOOMIN; ftom_zoommul = M_ZOOMOUT;`
-        }
-        key == `:number key_map_maxzoom` => {
-            set am_bigstate = !am_bigstate
-            if am_bigstate {
+        `:boolean followplayer` => `am_eat = false;`
+        axis == :x => `m_paninc.x = a_dbl($dir) * FTOM(F_PANINC);`
+        else       => `m_paninc.y = a_dbl($dir) * FTOM(F_PANINC);`
+    }
+}
+
+;; A zoom, while its key is held: in, out, or none.
+func zoom (how) {
+    match how {
+        :in  => `mtof_zoommul = M_ZOOMIN;  ftom_zoommul = M_ZOOMOUT;`
+        :out => `mtof_zoommul = M_ZOOMOUT; ftom_zoommul = M_ZOOMIN;`
+        :none => `mtof_zoommul = FRACUNIT; ftom_zoommul = FRACUNIT;`
+    }
+}
+
+;; A message of the player.
+func say (text) {
+    `players[consoleplayer].message = DEH_String(A_STR_OF($text)->s);`
+}
+
+;; The keys, by the codes that the configuration binds (read when the
+;; program starts): what a key does when it goes down, and when it goes
+;; up. A key that two actions share does the first, as in the original,
+;; since the first is written last.
+pin var KEYS_DOWN = nil
+pin var KEYS_UP   = nil
+func am_keys () {
+    set KEYS_DOWN = [
+        @(`:number key_map_clearmark`) = \{
+            `AM_clearMarks();`
+            say(`:string AMSTR_MARKSCLEARED`)
+        },
+        @(`:number key_map_mark`)    = \{ `am_mark();` },
+        @(`:number key_map_grid`)    = \{
+            `grid = !grid;`
+            say(if `:boolean grid` => `:string AMSTR_GRIDON` => `:string AMSTR_GRIDOFF`)
+        },
+        @(`:number key_map_follow`)  = \{
+            `followplayer = !followplayer;`
+            `f_oldloc.x = INT_MAX;`
+            say(if `:boolean followplayer` => `:string AMSTR_FOLLOWON` => `:string AMSTR_FOLLOWOFF`)
+        },
+        @(`:number key_map_maxzoom`) = \{
+            set A.big = !A.big
+            if A.big {
                 `AM_saveScaleAndLoc(); AM_minOutWindowScale();`
             } else {
                 `AM_restoreScaleAndLoc();`
             }
-        }
-        key == `:number key_map_follow` => {
-            `followplayer = !followplayer;`
-            `f_oldloc.x = INT_MAX;`
-            `players[consoleplayer].message = DEH_String(followplayer ? AMSTR_FOLLOWON : AMSTR_FOLLOWOFF);`
-        }
-        key == `:number key_map_grid` => {
-            `grid = !grid;`
-            `players[consoleplayer].message = DEH_String(grid ? AMSTR_GRIDON : AMSTR_GRIDOFF);`
-        }
-        key == `:number key_map_mark` => `am_mark();`
-        key == `:number key_map_clearmark` => {
-            `AM_clearMarks();`
-            `players[consoleplayer].message = DEH_String(AMSTR_MARKSCLEARED);`
-        }
-        else => `am_eat = false;`
-    }
-    `am_cheat();`
-}
-
-;; A key up, with the map open: a pan or a zoom ends.
-func am_up () {
-    val key = `:number am_ev->data1`
-    ifs {
-        (key == `:number key_map_east`) || (key == `:number key_map_west`) => {
-            `if (!followplayer) m_paninc.x = 0;`
-        }
-        (key == `:number key_map_north`) || (key == `:number key_map_south`) => {
-            `if (!followplayer) m_paninc.y = 0;`
-        }
-        (key == `:number key_map_zoomout`) || (key == `:number key_map_zoomin`) => {
-            `mtof_zoommul = FRACUNIT; ftom_zoommul = FRACUNIT;`
-        }
-    }
+        },
+        @(`:number key_map_zoomin`)  = \{ zoom(:in) },
+        @(`:number key_map_zoomout`) = \{ zoom(:out) },
+        @(`:number key_map_south`)   = \{ pan(:y, -1) },
+        @(`:number key_map_north`)   = \{ pan(:y,  1) },
+        @(`:number key_map_west`)    = \{ pan(:x, -1) },
+        @(`:number key_map_east`)    = \{ pan(:x,  1) },
+    ]
+    set KEYS_UP = [
+        @(`:number key_map_zoomin`)  = \{ zoom(:none) },
+        @(`:number key_map_zoomout`) = \{ zoom(:none) },
+        @(`:number key_map_south`)   = \{ if !`:boolean followplayer` { `m_paninc.y = 0;` } },
+        @(`:number key_map_north`)   = \{ if !`:boolean followplayer` { `m_paninc.y = 0;` } },
+        @(`:number key_map_west`)    = \{ if !`:boolean followplayer` { `m_paninc.x = 0;` } },
+        @(`:number key_map_east`)    = \{ if !`:boolean followplayer` { `m_paninc.x = 0;` } },
+    ]
 }
 
 ;; THE AUTOMAP: closed, then open until its key, or until the engine
@@ -199,6 +208,7 @@ func am_up () {
 task Automap () {
     val me = task
     `AUTOMAP = $me; AM_ON = 1;`
+    am_keys()
     loop {
         ;; closed: only the key of the map (or the button) is taken
         await :am.key until `:boolean am_joy() || am_key(key_map_toggle)`
@@ -228,11 +238,23 @@ task Automap () {
                             `am_cheat();`
                             break
                         }
-                        `:boolean am_ev->type == ev_keydown` => am_down()
-                        `:boolean am_ev->type == ev_keyup`   => am_up()
+                        `:boolean am_ev->type == ev_keydown` => {
+                            val f = KEYS_DOWN@(`:number am_ev->data1`)
+                            if f {
+                                `am_eat = true;`
+                                f()
+                            }
+                            `am_cheat();`
+                        }
+                        `:boolean am_ev->type == ev_keyup` => {
+                            val f = KEYS_UP@(`:number am_ev->data1`)
+                            if f {
+                                f()
+                            }
+                        }
                     }
                 }
-                set am_bigstate = false
+                set A.big = false
                 `viewactive = true;`
                 `AM_Stop();`
             }

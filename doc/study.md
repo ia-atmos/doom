@@ -560,6 +560,11 @@ Done on 2026-11-26 (#11). In `am.atm`.
   places (the end of a level, a new level, the death of the player); in
   all, a tic of the automap follows in the same tic of the game, before
   any key, so the `watching` sees it first.
+- **The keys are tables of lambdas** (2026-11-26, after #73): what a
+  key does when it goes down, and when it goes up, by the code that the
+  configuration binds, in the place of two chains of tests. A key that
+  two actions share does the first, as in the original, since the first
+  is written last in the table.
 - **The pans and the zooms stay variables.** A held key sets a
   multiplier, its release clears it, and the tic applies it: the last
   key down wins, and any release of the pair stops both (zoom out held,
