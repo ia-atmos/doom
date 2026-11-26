@@ -1,0 +1,80 @@
+# The keys of the menus, from the title: a message with no question, the
+# help, the shortcuts of the items, a slider, the key back, the sound by
+# its function key, the question to quit (no), the question of the
+# nightmare (no), a new game by a shortcut, the question to end it (no),
+# a quick save that picks its slot and then asks (yes), a quick load
+# (no), the detail, the gamma, and the size of the screen.
+# The part on the title ends before frame 170, when the first demo
+# starts with a wipe (the keys wait during a wipe).
+20  press f2            # saving with no game: a message
+24  shot nosave.ppm
+26  press space         # any key takes it away
+30  press f1            # the help
+34  shot help.ppm
+36  press escape
+40  press escape        # the main menu
+42  shot skull1.ppm
+46  shot skull2.ppm     # the skull blinks
+50  press o             # a shortcut: Options
+52  press enter
+56  shot options.ppm
+60  press s             # Screen Size
+62  press left
+64  press left
+66  shot slider.ppm
+70  press s             # Sound Volume
+72  press enter
+74  press left          # the effects, lower
+76  shot sound.ppm
+80  press backspace     # back to the options
+82  shot back.ppm
+86  press escape        # closed
+90  press f4            # the sound, by its key
+92  press down
+94  press right         # the music, higher
+96  shot f4.ppm
+98  press escape
+100 press f10           # quit?
+104 shot quit.ppm
+106 press n
+110 press escape        # the main menu, on Options, its last item
+112 press n             # a shortcut: New Game
+114 press enter
+116 press enter         # Knee-Deep in the Dead
+118 press down
+120 press down          # Nightmare!
+122 press enter
+126 shot nightmare.ppm
+130 press n
+134 press escape
+136 press enter
+138 press enter
+140 press u             # a shortcut: Ultra-Violence
+142 shot ultra.ppm
+144 press enter
+300 press f7            # end the game?
+304 shot endgame.ppm
+310 press n
+320 press f6            # quick save: no slot yet, so the menu to save
+324 shot qsave1.ppm
+330 press enter         # the first slot
+334 press a
+336 press b
+338 shot typing.ppm
+340 press enter         # saved
+350 shot saved.ppm
+360 press f6            # quick save again: it asks
+364 shot qsave2.ppm
+370 press y
+380 press f9            # quick load: it asks
+384 shot qload.ppm
+390 press n
+400 press f5            # the detail
+404 shot detail.ppm
+410 press f11           # the gamma
+414 shot gamma.ppm
+420 press minus         # the screen, smaller
+422 press minus
+426 shot smaller.ppm
+430 press equals
+440 quit

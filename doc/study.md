@@ -28,10 +28,10 @@ this first section joins them (D8, 2026-11-25).
   are visible. But the variant has no saved games, its objects must
   still write their row for the renderer and the engine, and it costs
   2.7 to 3.3 times the instructions of the simulation with no rendering.
-- **Exactness held at every step.** Sixteen runs, 41,618 frames, compare
+- **Exactness held at every step.** Twenty runs, 51,215 frames, compare
   a checksum of the simulation and of the screen at each frame with the
-  engine all in C, after every commit; the variant passes fifteen of
-  them (all but the save).
+  engine all in C, after every commit; the variant passes eighteen of
+  them (all but the two that save).
 
 ## The parts, in numbers
 
@@ -47,6 +47,7 @@ and the C of its `:prelude` (data and copies of pixels, with no state).
 | Flow of the game | 128, 489 | 122, 552 | 67, 308 | `demosequence`, `pagetic` |
 | Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
 | Messages and chat | 277, 1358 | 118, 737 | 171, 998 | `message_counter`; `message_nottobefuckedwith` becomes local to a level; `chat_on` is a position of the task, and stays a variable for the menu |
+| Keys of the menus | 521, 2274 | 174, 1377 | 305, 1386 | none (the same machine: the modes stay variables of C, which the functions of the items set) |
 | Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
 | Zombieman, in the variant | 33 rows, 596 | 166, 1137 | 135, 894 | the row as the position (`state`, `nextstate`) |
 
@@ -498,6 +499,55 @@ of what the player picks up. Not verified: the lines that come from
 other players and the talks to oneself, which need more than one player
 (as for #37).
 
+## The keys of the menus
+
+Done on 2026-11-26 (#11). In `menu.atm`.
+
+| | C (`M_Responder`, `M_Ticker`) | Atmos (`menu.atm`) |
+|---|---|---|
+| Lines | 521 (with the types and the variables of the file) | 174, and 305 of C in the `:prelude` |
+| State | `saveStringEnter`, `messageToPrint`, `menuactive`, `currentMenu`, `itemOn`, `skullAnimCounter` | the same, but `skullAnimCounter`: the skull is a task (`await (10, :m.tic)`, then a toggle every 8) |
+
+- **The menus are data that point to C.** Each item of a menu is a
+  record with a function of C to call; those functions open the next
+  menu, start a message (with a function of C for its answer), or start
+  the typing of a name. The modes of the keys (typing, a message, a menu
+  open, closed) are set by them, and by the engine (any key on the
+  title opens the menu, in `G_Responder`; the close button of the
+  window starts the question to quit). So the task Menu reads the modes
+  at each key, in the order of C: the same arbiter as the face.
+- **What a task would do, and why it was not done.** A question is a
+  call with a callback: `M_StartMessage(text, M_QuitResponse, true)`.
+  As a task it would be `if await Ask(text) == yes { ... }`, in the
+  order of the text. But the question is started from inside a function
+  that a table of C calls, and answered by keys that come later, or by
+  the close button of the window, which in C replaces any message and
+  yet leaves a name being typed with the priority. Making the questions
+  tasks means moving the functions of the items and the tables to
+  Atmos, which is most of `m_menu.c`, for five questions.
+- **The skull is the one small win**: a counter of tics becomes two
+  awaits.
+- **What reads worse**: `M_Responder` must answer whether it took the
+  key, as `HU_Responder` (a variable of C, `m_eat`); and the mouse and
+  the joystick, which make keys out of motion with their own counters,
+  stayed in the native function, before the emit.
+
+This is the result of the face again, larger: a dispatcher of keys whose
+modes are set from outside it stays a dispatcher.
+
+### What was verified, and what was not
+
+A new test, `menu`, recorded on C (twenty in all): a message with no
+question, the help, the shortcuts of the items, a slider, the key back,
+the sound by its function key, the question to quit and the question of
+the nightmare (answered no), a new game, the question to end it, a
+quick save that picks its slot and then asks, a quick load, the detail,
+the gamma, the size of the screen. The tests `newgame`, `save`,
+`endgame`, `cheat`, and `hu` also go through the menus. Not verified:
+the mouse, the joystick, the close button of the window (the test
+platform posts only keys), and the macros of the keys with
+`vanilla_keyboard_mapping` off.
+
 ## The variant: a door and the zombieman as tasks
 
 A second program (`var.atm`, `make var`), for the comparison only: the
@@ -505,7 +555,8 @@ door that opens, waits, and closes, and the zombieman, are tasks, where
 the engine has a thinker that steps a state at each tic. It has no saved
 games. Its oracle is the main build: `make test-var` runs every test but
 `save` against the same expected outputs, and the fifteen are identical,
-tic by tic, simulation and screen.
+tic by tic, simulation and screen (on 2026-11-26, eighteen: all but
+`save` and `menu`, which save).
 
 How it meets the engine, with nothing of it edited: `p_doors.c` and
 `p_mobj.c` leave the build of the variant and are included in the

@@ -76,3 +76,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 60 | Screenshots in the report at each big step | rule of the author |
 | 61 | The wipe verified with three tics per frame (`-tst-tics`, test `tics`) | done 2026-11-26 |
 | 62 | The messages and the chat in `hu.atm`; tests `hu` and `chat` | done 2026-11-26 |
+| 63 | The keys of the menus in `menu.atm`; test `menu` | done 2026-11-26 |

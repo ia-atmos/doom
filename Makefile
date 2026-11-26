@@ -84,10 +84,10 @@ $(OUT)/var.atm.o: $(OUT)/var.atm.c
 test: $(OUT)/doom-tst
 	tst/run.sh
 
-# all the tests but the one that saves, against the outputs of the main
+# all the tests but the two that save, against the outputs of the main
 # build
 test-var: $(OUT)/doom-var-tst
-	SKIP=save BIN=$(abspath $(OUT)/doom-var-tst) tst/run.sh
+	SKIP="save menu" BIN=$(abspath $(OUT)/doom-var-tst) tst/run.sh
 
 test-c: $(OUT)/doom-c-tst
 	BIN=$(abspath $(OUT)/doom-c-tst) tst/run.sh
