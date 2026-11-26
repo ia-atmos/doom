@@ -1491,3 +1491,244 @@ void M_Ticker (void)
 }
 
 
+
+// From engine/src/doom/am_map.c: the keys of the automap and its tic,
+// with the constants and the variables that they use there.
+
+#include <limits.h>
+#include "am_map.h"
+#include "m_cheat.h"
+#include "m_fixed.h"
+
+typedef struct
+{
+    fixed_t x,y;
+} mpoint_t;
+
+#define F_PANINC	4
+#define M_ZOOMIN        ((int) (1.02*FRACUNIT))
+#define M_ZOOMOUT       ((int) (FRACUNIT/1.02))
+#define FTOM(x) FixedMul(((x)<<FRACBITS),scale_ftom)
+
+extern int		cheating;
+extern int		grid;
+extern int		amclock;
+extern mpoint_t		m_paninc;
+extern fixed_t		mtof_zoommul;
+extern fixed_t		ftom_zoommul;
+extern mpoint_t		f_oldloc;
+extern fixed_t		scale_ftom;
+extern int		markpointnum;
+extern int		followplayer;
+extern cheatseq_t	cheat_amap;
+// `plr` of am_map.c stays `static` there: it has the name of `plr` of
+// hu_stuff.c, above, and both are &players[consoleplayer] while a level
+// runs. The functions below use the one of hu_stuff.c.
+
+void AM_Start (void);
+void AM_saveScaleAndLoc(void);
+void AM_restoreScaleAndLoc(void);
+void AM_minOutWindowScale(void);
+void AM_addMark(void);
+void AM_clearMarks(void);
+void AM_changeWindowScale(void);
+void AM_doFollowPlayer(void);
+void AM_changeWindowLoc(void);
+
+//
+// Handle events (user inputs) in automap mode
+//
+boolean
+AM_Responder
+( event_t*	ev )
+{
+
+    int rc;
+    static int bigstate=0;
+    static char buffer[20];
+    int key;
+
+    rc = false;
+
+    if (ev->type == ev_joystick && joybautomap >= 0
+        && (ev->data1 & (1 << joybautomap)) != 0)
+    {
+        joywait = I_GetTime() + 5;
+
+        if (!automapactive)
+        {
+            AM_Start ();
+            viewactive = false;
+        }
+        else
+        {
+            bigstate = 0;
+            viewactive = true;
+            AM_Stop ();
+        }
+
+        return true;
+    }
+
+    if (!automapactive)
+    {
+	if (ev->type == ev_keydown && ev->data1 == key_map_toggle)
+	{
+	    AM_Start ();
+	    viewactive = false;
+	    rc = true;
+	}
+    }
+    else if (ev->type == ev_keydown)
+    {
+	rc = true;
+        key = ev->data1;
+
+        if (key == key_map_east)          // pan right
+        {
+            if (!followplayer) m_paninc.x = FTOM(F_PANINC);
+            else rc = false;
+        }
+        else if (key == key_map_west)     // pan left
+        {
+            if (!followplayer) m_paninc.x = -FTOM(F_PANINC);
+            else rc = false;
+        }
+        else if (key == key_map_north)    // pan up
+        {
+            if (!followplayer) m_paninc.y = FTOM(F_PANINC);
+            else rc = false;
+        }
+        else if (key == key_map_south)    // pan down
+        {
+            if (!followplayer) m_paninc.y = -FTOM(F_PANINC);
+            else rc = false;
+        }
+        else if (key == key_map_zoomout)  // zoom out
+        {
+            mtof_zoommul = M_ZOOMOUT;
+            ftom_zoommul = M_ZOOMIN;
+        }
+        else if (key == key_map_zoomin)   // zoom in
+        {
+            mtof_zoommul = M_ZOOMIN;
+            ftom_zoommul = M_ZOOMOUT;
+        }
+        else if (key == key_map_toggle)
+        {
+            bigstate = 0;
+            viewactive = true;
+            AM_Stop ();
+        }
+        else if (key == key_map_maxzoom)
+        {
+            bigstate = !bigstate;
+            if (bigstate)
+            {
+                AM_saveScaleAndLoc();
+                AM_minOutWindowScale();
+            }
+            else AM_restoreScaleAndLoc();
+        }
+        else if (key == key_map_follow)
+        {
+            followplayer = !followplayer;
+            f_oldloc.x = INT_MAX;
+            if (followplayer)
+                plr->message = DEH_String(AMSTR_FOLLOWON);
+            else
+                plr->message = DEH_String(AMSTR_FOLLOWOFF);
+        }
+        else if (key == key_map_grid)
+        {
+            grid = !grid;
+            if (grid)
+                plr->message = DEH_String(AMSTR_GRIDON);
+            else
+                plr->message = DEH_String(AMSTR_GRIDOFF);
+        }
+        else if (key == key_map_mark)
+        {
+            M_snprintf(buffer, sizeof(buffer), "%s %d",
+                       DEH_String(AMSTR_MARKEDSPOT), markpointnum);
+            plr->message = buffer;
+            AM_addMark();
+        }
+        else if (key == key_map_clearmark)
+        {
+            AM_clearMarks();
+            plr->message = DEH_String(AMSTR_MARKSCLEARED);
+        }
+        else
+        {
+            rc = false;
+        }
+
+        if ((!deathmatch || gameversion <= exe_doom_1_8)
+         && cht_CheckCheat(&cheat_amap, ev->data2))
+        {
+            rc = false;
+            cheating = (cheating + 1) % 3;
+        }
+    }
+    else if (ev->type == ev_keyup)
+    {
+        rc = false;
+        key = ev->data1;
+
+        if (key == key_map_east)
+        {
+            if (!followplayer) m_paninc.x = 0;
+        }
+        else if (key == key_map_west)
+        {
+            if (!followplayer) m_paninc.x = 0;
+        }
+        else if (key == key_map_north)
+        {
+            if (!followplayer) m_paninc.y = 0;
+        }
+        else if (key == key_map_south)
+        {
+            if (!followplayer) m_paninc.y = 0;
+        }
+        else if (key == key_map_zoomout || key == key_map_zoomin)
+        {
+            mtof_zoommul = FRACUNIT;
+            ftom_zoommul = FRACUNIT;
+        }
+    }
+
+    return rc;
+
+}
+
+
+//
+// Updates on Game Tick
+//
+void AM_Ticker (void)
+{
+
+    if (!automapactive)
+	return;
+
+    amclock++;
+
+    if (followplayer)
+	AM_doFollowPlayer();
+
+    // Change the zoom if necessary
+    if (ftom_zoommul != FRACUNIT)
+	AM_changeWindowScale();
+
+    // Change x,y location
+    if (m_paninc.x || m_paninc.y)
+	AM_changeWindowLoc();
+
+    // Update light level
+    // AM_updateLightLev();
+
+}
+
+

@@ -194,8 +194,8 @@ mline_t thintriangle_guy[] = {
 
 
 
-static int 	cheating = 0;
-static int 	grid = 0;
+int 	cheating = 0;
+int 	grid = 0;
 
 boolean    	automapactive = false;
 static int 	finit_width = SCREENWIDTH;
@@ -211,11 +211,11 @@ static int	f_h;
 
 static int 	lightlev; 		// used for funky strobing effect
 static pixel_t*	fb; 			// pseudo-frame buffer
-static int 	amclock;
+int 	amclock;
 
-static mpoint_t m_paninc; // how far the window pans each tic (map coords)
-static fixed_t 	mtof_zoommul; // how far the window zooms in each tic (map coords)
-static fixed_t 	ftom_zoommul; // how far the window zooms in each tic (fb coords)
+mpoint_t m_paninc; // how far the window pans each tic (map coords)
+fixed_t 	mtof_zoommul; // how far the window zooms in each tic (map coords)
+fixed_t 	ftom_zoommul; // how far the window zooms in each tic (fb coords)
 
 static fixed_t 	m_x, m_y;   // LL x,y where the window is on the map (map coords)
 static fixed_t 	m_x2, m_y2; // UR x,y where the window is on the map (map coords)
@@ -248,20 +248,20 @@ static fixed_t old_m_w, old_m_h;
 static fixed_t old_m_x, old_m_y;
 
 // old location used by the Follower routine
-static mpoint_t f_oldloc;
+mpoint_t f_oldloc;
 
 // used by MTOF to scale from map-to-frame-buffer coords
 static fixed_t scale_mtof = (fixed_t)INITSCALEMTOF;
 // used by FTOM to scale from frame-buffer-to-map coords (=1/scale_mtof)
-static fixed_t scale_ftom;
+fixed_t scale_ftom;
 
 static player_t *plr; // the player represented by an arrow
 
 static patch_t *marknums[10]; // numbers used for marking by the automap
 static mpoint_t markpoints[AM_NUMMARKPOINTS]; // where the points are
-static int markpointnum = 0; // next point to be assigned
+int markpointnum = 0; // next point to be assigned
 
-static int followplayer = 1; // specifies whether to follow the player around
+int followplayer = 1; // specifies whether to follow the player around
 
 cheatseq_t cheat_amap = CHEAT("iddt", 0);
 
@@ -587,175 +587,6 @@ void AM_maxOutWindowScale(void)
 
 
 //
-// Handle events (user inputs) in automap mode
-//
-boolean
-AM_Responder
-( event_t*	ev )
-{
-
-    int rc;
-    static int bigstate=0;
-    static char buffer[20];
-    int key;
-
-    rc = false;
-
-    if (ev->type == ev_joystick && joybautomap >= 0
-        && (ev->data1 & (1 << joybautomap)) != 0)
-    {
-        joywait = I_GetTime() + 5;
-
-        if (!automapactive)
-        {
-            AM_Start ();
-            viewactive = false;
-        }
-        else
-        {
-            bigstate = 0;
-            viewactive = true;
-            AM_Stop ();
-        }
-
-        return true;
-    }
-
-    if (!automapactive)
-    {
-	if (ev->type == ev_keydown && ev->data1 == key_map_toggle)
-	{
-	    AM_Start ();
-	    viewactive = false;
-	    rc = true;
-	}
-    }
-    else if (ev->type == ev_keydown)
-    {
-	rc = true;
-        key = ev->data1;
-
-        if (key == key_map_east)          // pan right
-        {
-            if (!followplayer) m_paninc.x = FTOM(F_PANINC);
-            else rc = false;
-        }
-        else if (key == key_map_west)     // pan left
-        {
-            if (!followplayer) m_paninc.x = -FTOM(F_PANINC);
-            else rc = false;
-        }
-        else if (key == key_map_north)    // pan up
-        {
-            if (!followplayer) m_paninc.y = FTOM(F_PANINC);
-            else rc = false;
-        }
-        else if (key == key_map_south)    // pan down
-        {
-            if (!followplayer) m_paninc.y = -FTOM(F_PANINC);
-            else rc = false;
-        }
-        else if (key == key_map_zoomout)  // zoom out
-        {
-            mtof_zoommul = M_ZOOMOUT;
-            ftom_zoommul = M_ZOOMIN;
-        }
-        else if (key == key_map_zoomin)   // zoom in
-        {
-            mtof_zoommul = M_ZOOMIN;
-            ftom_zoommul = M_ZOOMOUT;
-        }
-        else if (key == key_map_toggle)
-        {
-            bigstate = 0;
-            viewactive = true;
-            AM_Stop ();
-        }
-        else if (key == key_map_maxzoom)
-        {
-            bigstate = !bigstate;
-            if (bigstate)
-            {
-                AM_saveScaleAndLoc();
-                AM_minOutWindowScale();
-            }
-            else AM_restoreScaleAndLoc();
-        }
-        else if (key == key_map_follow)
-        {
-            followplayer = !followplayer;
-            f_oldloc.x = INT_MAX;
-            if (followplayer)
-                plr->message = DEH_String(AMSTR_FOLLOWON);
-            else
-                plr->message = DEH_String(AMSTR_FOLLOWOFF);
-        }
-        else if (key == key_map_grid)
-        {
-            grid = !grid;
-            if (grid)
-                plr->message = DEH_String(AMSTR_GRIDON);
-            else
-                plr->message = DEH_String(AMSTR_GRIDOFF);
-        }
-        else if (key == key_map_mark)
-        {
-            M_snprintf(buffer, sizeof(buffer), "%s %d",
-                       DEH_String(AMSTR_MARKEDSPOT), markpointnum);
-            plr->message = buffer;
-            AM_addMark();
-        }
-        else if (key == key_map_clearmark)
-        {
-            AM_clearMarks();
-            plr->message = DEH_String(AMSTR_MARKSCLEARED);
-        }
-        else
-        {
-            rc = false;
-        }
-
-        if ((!deathmatch || gameversion <= exe_doom_1_8)
-         && cht_CheckCheat(&cheat_amap, ev->data2))
-        {
-            rc = false;
-            cheating = (cheating + 1) % 3;
-        }
-    }
-    else if (ev->type == ev_keyup)
-    {
-        rc = false;
-        key = ev->data1;
-
-        if (key == key_map_east)
-        {
-            if (!followplayer) m_paninc.x = 0;
-        }
-        else if (key == key_map_west)
-        {
-            if (!followplayer) m_paninc.x = 0;
-        }
-        else if (key == key_map_north)
-        {
-            if (!followplayer) m_paninc.y = 0;
-        }
-        else if (key == key_map_south)
-        {
-            if (!followplayer) m_paninc.y = 0;
-        }
-        else if (key == key_map_zoomout || key == key_map_zoomin)
-        {
-            mtof_zoommul = FRACUNIT;
-            ftom_zoommul = FRACUNIT;
-        }
-    }
-
-    return rc;
-
-}
-
-
-//
 // Zooming
 //
 void AM_changeWindowScale(void)
@@ -815,34 +646,6 @@ void AM_updateLightLev(void)
 	if (litelevelscnt == arrlen(litelevels)) litelevelscnt = 0;
 	nexttic = amclock + 6 - (amclock % 6);
     }
-
-}
-
-
-//
-// Updates on Game Tick
-//
-void AM_Ticker (void)
-{
-
-    if (!automapactive)
-	return;
-
-    amclock++;
-
-    if (followplayer)
-	AM_doFollowPlayer();
-
-    // Change the zoom if necessary
-    if (ftom_zoommul != FRACUNIT)
-	AM_changeWindowScale();
-
-    // Change x,y location
-    if (m_paninc.x || m_paninc.y)
-	AM_changeWindowLoc();
-
-    // Update light level
-    // AM_updateLightLev();
 
 }
 

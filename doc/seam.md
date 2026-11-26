@@ -12,7 +12,7 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-Five files are changed, and three files left the build.
+Six files are changed, and three files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
@@ -24,6 +24,7 @@ Five files are changed, and three files left the build.
 | `src/doom/st_stuff.c`, the face | `ST_calcPainOffset` and `ST_updateFaceWidget` are removed (they are in `c/main.c` as they were), with a prototype of the second; `plyr`, `st_oldhealth`, `oldweaponsowned`, `st_facecount`, `st_faceindex`, and `st_randomnumber` lose their `static` | The face is in `st.atm`, and reads and writes these variables, which the rest of the status bar keeps |
 | `src/doom/hu_stuff.c`, the messages | `HU_Start`, `HU_Ticker`, `HU_Responder`, `StartChatInput`, and `StopChatInput` are removed (they are in `c/main.c` as they were); `plr`, `w_title`, `w_chat`, `always_off`, `chat_dest`, `w_inputbuffer`, `message_on`, `message_nottobefuckedwith`, `w_message`, `message_counter`, and `headsupactive` lose their `static` | The messages and the chat are in `hu.atm`, which keeps the widgets of the file. The last two are only for `c/main.c` |
 | `src/doom/m_menu.c`, the keys | `M_Responder`, `IsNullKey`, and `M_Ticker` are removed (they are in `c/main.c` as they were); `joypadSave` loses its `static`, and so do the prototypes of `M_LoadGame`, `M_SaveGame`, `M_EndGame`, `M_QuitDOOM`, `M_ChangeMessages`, `M_ChangeDetail`, `M_SizeDisplay`, `M_QuickSave`, `M_QuickLoad`, `M_StringWidth`, and `M_ClearMenus` | The keys of the menus are in `menu.atm`, which calls these functions of the file |
+| `src/doom/am_map.c`, the keys | `AM_Responder` and `AM_Ticker` are removed (they are in `c/main.c` as they were); `cheating`, `grid`, `amclock`, `m_paninc`, `mtof_zoommul`, `ftom_zoommul`, `f_oldloc`, `scale_ftom`, `markpointnum`, and `followplayer` lose their `static` (`plr` keeps it: it has the name of the `plr` of `hu_stuff.c`, and is the same player) | The keys of the automap are in `am.atm` |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 | `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |
@@ -118,6 +119,8 @@ From the engine to the program:
 | `HU_Responder(ev)` | An input event in a level (`G_Responder`). The shifts and the alts are handled in C; a key down emits `:hu.key`, and the function answers what the task Hud set in `hu_eat` |
 | `M_Responder(ev)` | An input event, before the game sees it (`D_ProcessEvents`). The test of the controls, the close button, the mouse and the joystick stay in C; a key emits `:m.key`, and the function answers what the task Menu left in `m_eat` |
 | `M_Ticker()` | Once per tic. Emits `:m.tic`, to the task Skull |
+| `AM_Responder(ev)` | An input event in a level (`G_Responder`). Emits `:am.key`, and the function answers what the task Automap left in `am_eat` |
+| `AM_Ticker()` | A tic of a level (`G_Ticker`). Emits `:am.tic` |
 | `F_StartFinale()` | An episode ended (`G_Ticker`, `G_DoCompleted`). Sets the state of the game, chooses the text, and emits `:fi.start` |
 | `F_Ticker()` | A tic of the game in the finale (`G_Ticker`). Emits `:fi.tic` |
 | `F_Drawer()` | The finale must be drawn (`D_Display`). Emits `:fi.draw` |

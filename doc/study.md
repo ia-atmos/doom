@@ -28,9 +28,9 @@ this first section joins them (D8, 2026-11-25).
   are visible. But the variant has no saved games, its objects must
   still write their row for the renderer and the engine, and it costs
   2.7 to 3.3 times the instructions of the simulation with no rendering.
-- **Exactness held at every step.** Twenty runs, 51,215 frames, compare
+- **Exactness held at every step.** Twenty-one runs, 51,576 frames, compare
   a checksum of the simulation and of the screen at each frame with the
-  engine all in C, after every commit; the variant passes eighteen of
+  engine all in C, after every commit; the variant passes nineteen of
   them (all but the two that save).
 
 ## The parts, in numbers
@@ -48,6 +48,7 @@ and the C of its `:prelude` (data and copies of pixels, with no state).
 | Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
 | Messages and chat | 277, 1358 | 118, 737 | 171, 998 | `message_counter`; `message_nottobefuckedwith` becomes local to a level; `chat_on` is a position of the task, and stays a variable for the menu |
 | Keys of the menus | 521, 2274 | 174, 1377 | 305, 1386 | none (the same machine: the modes stay variables of C, which the functions of the items set) |
+| Keys of the automap | 197, 890 | 107, 751 | 84, 443 | none (open and closed is a position of the task; the pans and the zooms stay variables, read by the tic) |
 | Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
 | Zombieman, in the variant | 33 rows, 596 | 166, 1137 | 135, 894 | the row as the position (`state`, `nextstate`) |
 
@@ -548,6 +549,43 @@ the mouse, the joystick, the close button of the window (the test
 platform posts only keys), and the macros of the keys with
 `vanilla_keyboard_mapping` off.
 
+## The keys of the automap
+
+Done on 2026-11-26 (#11). In `am.atm`.
+
+| | C (`AM_Responder`, `AM_Ticker`) | Atmos (`am.atm`) |
+|---|---|---|
+| Lines | 197 (with the constants and the variables of the file) | 107, and 84 of C in the `:prelude` |
+| State | `automapactive` (read by both), the static `bigstate`, `m_paninc`, the two multipliers of the zoom | `automapactive` stays (the engine reads it, and closes the map); open and closed is also the position of the task; `am_bigstate` lasts as long as the program, as the static |
+
+- **Open and closed is a sequence**: closed, the task awaits the key of
+  the map; open, a `watching` holds the tic that moves the map and the
+  keys, until the key of the map (the task closes it) or a tic that
+  finds the map closed by the engine. The engine closes it in three
+  places (the end of a level, a new level, the death of the player); in
+  all, a tic of the automap follows in the same tic of the game, before
+  any key, so the `watching` sees it first.
+- **The pans and the zooms stay variables.** A held key sets a
+  multiplier, its release clears it, and the tic applies it: the last
+  key down wins, and any release of the pair stops both (zoom out held,
+  zoom in down and up: no zoom). A task per held key would not say
+  this more simply, and the work of a tic has an order (follow, then
+  zoom, then pan) that one loop keeps.
+- **What reads worse**: the answer of `AM_Responder` is a variable of C
+  again (`am_eat`); the key of the map, when it closes the map, still
+  goes through the cheat of the map, as in C.
+
+### What was verified, and what was not
+
+A new test, `automap`, recorded on C (twenty-one in all): open, follow
+off, the grid, a pan and a zoom while held, the whole map and back, two
+marks and their clearing, the cheat twice, follow with the player
+walking, closed and opened again, a new level by a cheat with the map
+open (closed by the engine), and open in the new level. Not verified:
+the button of the joystick, the death of the player with the map open,
+and the end of a level with it open (the `level` test exits with it
+closed).
+
 ## The variant: a door and the zombieman as tasks
 
 A second program (`var.atm`, `make var`), for the comparison only: the
@@ -555,7 +593,7 @@ door that opens, waits, and closes, and the zombieman, are tasks, where
 the engine has a thinker that steps a state at each tic. It has no saved
 games. Its oracle is the main build: `make test-var` runs every test but
 `save` against the same expected outputs, and the fifteen are identical,
-tic by tic, simulation and screen (on 2026-11-26, eighteen: all but
+tic by tic, simulation and screen (on 2026-11-26, nineteen: all but
 `save` and `menu`, which save).
 
 How it meets the engine, with nothing of it edited: `p_doors.c` and

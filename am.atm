@@ -1,0 +1,246 @@
+;; THE KEYS OF THE AUTOMAP
+;;
+;; The map of the level over the screen: the key that opens and closes
+;; it, and, while it is open, the keys that pan and zoom it (as long as
+;; they are held), that follow the player, show the grid, mark spots,
+;; and the cheat that shows more; and the tic that moves it.
+;;
+;; In the engine, it was AM_Responder and AM_Ticker, of
+;; engine/src/doom/am_map.c. The rest stays there: the geometry of the
+;; map (its scale and position), the marks, and the drawing.
+;;
+;; The engine emits, to the task Automap only:
+;;
+;;      :am.key     an input event in a level (AM_Responder): it is in
+;;                  `am_ev`, and a task that takes it sets `am_eat`
+;;      :am.tic     once per tic of a level (AM_Ticker)
+
+```:prelude
+#include <limits.h>
+
+#include "doomdef.h"
+#include "doomkeys.h"
+#include "doomstat.h"
+#include "dstrings.h"
+
+#include "am_map.h"
+#include "deh_main.h"
+#include "i_video.h"
+#include "m_cheat.h"
+#include "m_controls.h"
+#include "m_fixed.h"
+#include "m_misc.h"
+
+// Of engine/src/doom/am_map.c.
+typedef struct
+{
+    fixed_t x,y;
+} mpoint_t;
+
+#define F_PANINC	4
+#define M_ZOOMIN        ((int) (1.02*FRACUNIT))
+#define M_ZOOMOUT       ((int) (FRACUNIT/1.02))
+#define FTOM(x) FixedMul(((x)<<FRACBITS),scale_ftom)
+
+extern int		cheating;
+extern int		grid;
+extern int		amclock;
+extern mpoint_t		m_paninc;
+extern fixed_t		mtof_zoommul;
+extern fixed_t		ftom_zoommul;
+extern mpoint_t		f_oldloc;
+extern fixed_t		scale_ftom;
+extern int		markpointnum;
+extern int		followplayer;
+extern cheatseq_t	cheat_amap;
+
+void AM_Start (void);
+void AM_saveScaleAndLoc(void);
+void AM_restoreScaleAndLoc(void);
+void AM_minOutWindowScale(void);
+void AM_addMark(void);
+void AM_clearMarks(void);
+void AM_changeWindowScale(void);
+void AM_doFollowPlayer(void);
+void AM_changeWindowLoc(void);
+
+// The task Automap, which alone awaits :am.key and :am.tic.
+static AVal AUTOMAP;
+static int AM_ON = 0;
+
+static event_t* am_ev;          // the event of :am.key
+static boolean am_eat;          // the event was taken
+
+// Called by the engine with an input event, in a level.
+boolean AM_Responder (event_t* ev) {
+    doom_start();
+    am_ev = ev;
+    am_eat = false;
+    if (AM_ON) {
+        doom_emit_to(AUTOMAP, "am.key");
+    }
+    return am_eat;
+}
+
+// Called by the engine once per tic of a level.
+void AM_Ticker (void) {
+    doom_start();
+    if (AM_ON) {
+        doom_emit_to(AUTOMAP, "am.tic");
+    }
+}
+
+// The button of the joystick for the map, which opens and closes it.
+static boolean am_joy (void) {
+    if (am_ev->type == ev_joystick && joybautomap >= 0
+        && (am_ev->data1 & (1 << joybautomap)) != 0) {
+        joywait = I_GetTime() + 5;
+        return true;
+    }
+    return false;
+}
+
+// The key of the map, down.
+static boolean am_key (int key) {
+    return am_ev->type == ev_keydown && am_ev->data1 == key;
+}
+
+// The cheat of the map (iddt), checked with every key down while the map
+// is open: it shows all the lines, then all the things, then neither.
+static void am_cheat (void) {
+    if ((!deathmatch || gameversion <= exe_doom_1_8)
+        && cht_CheckCheat(&cheat_amap, am_ev->data2)) {
+        am_eat = false;
+        cheating = (cheating + 1) % 3;
+    }
+}
+
+static void am_mark (void) {
+    static char buffer[20];
+    M_snprintf(buffer, sizeof(buffer), "%s %d",
+               DEH_String(AMSTR_MARKEDSPOT), markpointnum);
+    players[consoleplayer].message = buffer;
+    AM_addMark();
+}
+```
+
+;; The window as large as the map, or back: it lasts as long as the
+;; program, as the static of C (a map closed by the engine keeps it).
+var am_bigstate = false
+
+;; A key down, with the map open (not the key of the map).
+func am_down () {
+    `am_eat = true;`
+    val key = `:number am_ev->data1`
+    ifs {
+        key == `:number key_map_east` => {
+            `if (!followplayer) m_paninc.x = FTOM(F_PANINC); else am_eat = false;`
+        }
+        key == `:number key_map_west` => {
+            `if (!followplayer) m_paninc.x = -FTOM(F_PANINC); else am_eat = false;`
+        }
+        key == `:number key_map_north` => {
+            `if (!followplayer) m_paninc.y = FTOM(F_PANINC); else am_eat = false;`
+        }
+        key == `:number key_map_south` => {
+            `if (!followplayer) m_paninc.y = -FTOM(F_PANINC); else am_eat = false;`
+        }
+        key == `:number key_map_zoomout` => {
+            `mtof_zoommul = M_ZOOMOUT; ftom_zoommul = M_ZOOMIN;`
+        }
+        key == `:number key_map_zoomin` => {
+            `mtof_zoommul = M_ZOOMIN; ftom_zoommul = M_ZOOMOUT;`
+        }
+        key == `:number key_map_maxzoom` => {
+            set am_bigstate = !am_bigstate
+            if am_bigstate {
+                `AM_saveScaleAndLoc(); AM_minOutWindowScale();`
+            } else {
+                `AM_restoreScaleAndLoc();`
+            }
+        }
+        key == `:number key_map_follow` => {
+            `followplayer = !followplayer;`
+            `f_oldloc.x = INT_MAX;`
+            `players[consoleplayer].message = DEH_String(followplayer ? AMSTR_FOLLOWON : AMSTR_FOLLOWOFF);`
+        }
+        key == `:number key_map_grid` => {
+            `grid = !grid;`
+            `players[consoleplayer].message = DEH_String(grid ? AMSTR_GRIDON : AMSTR_GRIDOFF);`
+        }
+        key == `:number key_map_mark` => `am_mark();`
+        key == `:number key_map_clearmark` => {
+            `AM_clearMarks();`
+            `players[consoleplayer].message = DEH_String(AMSTR_MARKSCLEARED);`
+        }
+        else => `am_eat = false;`
+    }
+    `am_cheat();`
+}
+
+;; A key up, with the map open: a pan or a zoom ends.
+func am_up () {
+    val key = `:number am_ev->data1`
+    ifs {
+        (key == `:number key_map_east`) || (key == `:number key_map_west`) => {
+            `if (!followplayer) m_paninc.x = 0;`
+        }
+        (key == `:number key_map_north`) || (key == `:number key_map_south`) => {
+            `if (!followplayer) m_paninc.y = 0;`
+        }
+        (key == `:number key_map_zoomout`) || (key == `:number key_map_zoomin`) => {
+            `mtof_zoommul = FRACUNIT; ftom_zoommul = FRACUNIT;`
+        }
+    }
+}
+
+;; THE AUTOMAP: closed, then open until its key, or until the engine
+;; closes it (a new level, the end of a level, the death of the player).
+task Automap () {
+    val me = task
+    `AUTOMAP = $me; AM_ON = 1;`
+    loop {
+        ;; closed: only the key of the map (or the button) is taken
+        loop on :am.key {
+            until `:boolean am_joy() || am_key(key_map_toggle)`
+        }
+        `AM_Start();`
+        `viewactive = false;`
+        `am_eat = true;`
+
+        ;; open
+        watching :am.tic until !`:boolean automapactive` {
+            par :any {
+                loop on :am.tic {
+                    if `:boolean automapactive` {
+                        `amclock++;`
+                        `if (followplayer) AM_doFollowPlayer();`
+                        `if (ftom_zoommul != FRACUNIT) AM_changeWindowScale();`
+                        `if (m_paninc.x || m_paninc.y) AM_changeWindowLoc();`
+                    }
+                }
+            } with {
+                loop on :am.key {
+                    ifs {
+                        `:boolean am_joy()` => {
+                            `am_eat = true;`
+                            break
+                        }
+                        `:boolean am_key(key_map_toggle)` => {
+                            `am_eat = true;`
+                            `am_cheat();`
+                            break
+                        }
+                        `:boolean am_ev->type == ev_keydown` => am_down()
+                        `:boolean am_ev->type == ev_keyup`   => am_up()
+                    }
+                }
+                set am_bigstate = false
+                `viewactive = true;`
+                `AM_Stop();`
+            }
+        }
+    }
+}
+
+spawn Automap()

@@ -1,0 +1,58 @@
+# The automap: open, follow off, the grid, a pan and a zoom while their
+# keys are held, the whole map and back, two marks and their clearing,
+# the cheat of the map twice, follow on with the player walking, closed
+# and open again, and a new level by a cheat with the map open (the
+# engine closes it), then open in E1M2. The level starts at frame 41,
+# after the wipe of the warp.
+50  press tab           # open
+54  shot open.ppm
+60  press f             # follow off
+64  press g             # the grid
+68  shot grid.ppm
+70  down right          # pan, while held
+80  up right
+82  shot pan.ppm
+90  down minus          # zoom out, while held
+100 up minus
+102 shot zoomout.ppm
+110 down equals         # zoom in
+115 up equals
+120 press 0             # the whole map
+124 shot big.ppm
+126 press 0             # back
+130 press m             # a mark
+132 down up
+140 up up
+142 press m             # another
+146 shot marks.ppm
+150 press c             # cleared
+160 press i
+162 press d
+164 press d
+166 press t             # all the lines
+170 shot iddt1.ppm
+180 press i
+182 press d
+184 press d
+186 press t             # and the things
+190 shot iddt2.ppm
+200 press f             # follow on
+202 down up             # the player walks; the map follows
+230 up up
+232 shot follow.ppm
+240 press tab           # closed
+244 shot closed.ppm
+250 press tab           # open again
+254 shot reopened.ppm
+260 press i
+262 press d
+264 press c
+266 press l
+268 press e
+270 press v
+272 press 1
+274 press 2             # E1M2: the engine closes the map
+300 shot e1m2.ppm
+330 press tab           # open, in E1M2
+334 shot e1m2map.ppm
+360 quit

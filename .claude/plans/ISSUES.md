@@ -24,7 +24,7 @@ no decision needed), **done**, **closed** (settled with no change),
 | 8 | D3: the intermission | done 2026-11-14 |
 | 9 | D4: the finale | done 2026-11-16 |
 | 10 | D5: the flow of the game | done 2026-11-16 |
-| 11 | D6: the status bar, the messages, the menus, the automap | work: the face is done; the rest listed for later (#52) |
+| 11 | D6: the status bar, the messages, the menus, the automap | done 2026-11-26 (#62, #63, #64) |
 | 12 | D7: the variant, a door and the zombieman as tasks | done 2026-11-20 (#56) |
 | 13 | D8: the study and the benchmark | done 2026-11-25 (#59) |
 | 14 | The local clone of the compiler has the old address as its remote | note |
@@ -77,3 +77,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 61 | The wipe verified with three tics per frame (`-tst-tics`, test `tics`) | done 2026-11-26 |
 | 62 | The messages and the chat in `hu.atm`; tests `hu` and `chat` | done 2026-11-26 |
 | 63 | The keys of the menus in `menu.atm`; test `menu` | done 2026-11-26 |
+| 64 | The keys of the automap in `am.atm`; test `automap`; D6 done | done 2026-11-26 |
