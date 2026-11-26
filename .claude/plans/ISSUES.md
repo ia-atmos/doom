@@ -80,3 +80,9 @@ no decision needed), **done**, **closed** (settled with no change),
 | 64 | The keys of the automap in `am.atm`; test `automap`; D6 done | done 2026-11-26 |
 | 65 | The cost of D6, four emits per tic | note |
 | 66 | A pair of Atmos excerpts, idiomatic and bad, per group of changes in a report | rule of the author |
+| 67 | Excerpt, idiomatic: the time of a message (`hu.atm:281`) | shown |
+| 68 | Excerpt, bad: a key of the chat (`hu.atm:347`), the interface with C | shown |
+| 69 | Excerpt, idiomatic: the skull (`menu.atm:389`) | shown |
+| 70 | Excerpt, bad: the key down in a menu (`menu.atm:505`), structs of C | shown |
+| 71 | Excerpt, idiomatic: the closed map (`am.atm:204`) | shown |
+| 72 | Excerpt, bad: a guard repeated in the tic of the map (`am.atm:214`), fixed | shown, fixed |
