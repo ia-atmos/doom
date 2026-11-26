@@ -47,7 +47,7 @@ and the C of its `:prelude` (data and copies of pixels, with no state).
 | Flow of the game | 128, 489 | 122, 552 | 67, 308 | `demosequence`, `pagetic` |
 | Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
 | Messages and chat | 277, 1358 | 118, 737 | 171, 998 | `message_counter`; `message_nottobefuckedwith` becomes local to a level; `chat_on` is a position of the task, and stays a variable for the menu |
-| Keys of the menus | 521, 2274 | 174, 1377 | 305, 1386 | none (the same machine: the modes stay variables of C, which the functions of the items set) |
+| Menus (all of `m_menu.c`) | 1533, 6918 | 751, 5393 | 232, 1241 | `messageToPrint`, `messageRoutine`, `messageLastMenuActive`, `saveStringEnter`, `saveCharIndex`, `saveOldString`, `skullAnimCounter`; the menus as data of Atmos; the questions as awaits |
 | Keys of the automap | 197, 890 | 107, 751 | 84, 443 | none (open and closed is a position of the task; the pans and the zooms stay variables, read by the tic) |
 | Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
 | Zombieman, in the variant | 33 rows, 596 | 166, 1137 | 135, 894 | the row as the position (`state`, `nextstate`) |
@@ -500,54 +500,53 @@ of what the player picks up. Not verified: the lines that come from
 other players and the talks to oneself, which need more than one player
 (as for #37).
 
-## The keys of the menus
+## The menus
 
-Done on 2026-11-26 (#11). In `menu.atm`.
+First done on 2026-11-26 as the same dispatcher (#63); redone the same
+day as Atmos, after the general instruction of the author (#73, #74):
+all of `m_menu.c` left the build of the program (as `wi_stuff.c` did),
+and is in `menu.atm`.
 
-| | C (`M_Responder`, `M_Ticker`) | Atmos (`menu.atm`) |
+| | C (`m_menu.c`) | Atmos (`menu.atm`) |
 |---|---|---|
-| Lines | 521 (with the types and the variables of the file) | 174, and 305 of C in the `:prelude` |
-| State | `saveStringEnter`, `messageToPrint`, `menuactive`, `currentMenu`, `itemOn`, `skullAnimCounter` | the same, but `skullAnimCounter`: the skull is a task (`await (10, :m.tic)`, then a toggle every 8) |
+| Lines | 1533 | 751, and 232 of C in the `:prelude` (the mouse and the joystick made keys, the files of the saves) |
+| State | `currentMenu`, `itemOn`, `messageToPrint`, `messageString`, `messageRoutine`, `messageNeedsInput`, `messageLastMenuActive`, `saveStringEnter`, `saveSlot`, `saveCharIndex`, `saveOldString`, `savegamestrings`, `quickSaveSlot`, `epi`, `screenSize`, `whichSkull`, `skullAnimCounter` | one table `M` (the menu, the item, the skull, the quick slot, the names of the saves, the slot being typed); `menuactive` stays in C, which the engine reads |
 
-- **The menus are data that point to C.** Each item of a menu is a
-  record with a function of C to call; those functions open the next
-  menu, start a message (with a function of C for its answer), or start
-  the typing of a name. The modes of the keys (typing, a message, a menu
-  open, closed) are set by them, and by the engine (any key on the
-  title opens the menu, in `G_Responder`; the close button of the
-  window starts the question to quit). So the task Menu reads the modes
-  at each key, in the order of C: the same arbiter as the face.
-- **What a task would do, and why it was not done.** A question is a
-  call with a callback: `M_StartMessage(text, M_QuitResponse, true)`.
-  As a task it would be `if await Ask(text) == yes { ... }`, in the
-  order of the text. But the question is started from inside a function
-  that a table of C calls, and answered by keys that come later, or by
-  the close button of the window, which in C replaces any message and
-  yet leaves a name being typed with the priority. Making the questions
-  tasks means moving the functions of the items and the tables to
-  Atmos, which is most of `m_menu.c`, for five questions.
-- **The skull is the one small win**: a counter of tics becomes two
-  awaits.
-- **What reads worse**: `M_Responder` must answer whether it took the
-  key, as `HU_Responder` (a variable of C, `m_eat`); and the mouse and
-  the joystick, which make keys out of motion with their own counters,
-  stayed in the native function, before the emit.
-
-This is the result of the face again, larger: a dispatcher of keys whose
-modes are set from outside it stays a dispatcher.
+- **The menus are data.** Each menu is a table: where it is drawn, a
+  lambda that draws its title, the menu before, and its items; each item
+  a table with its graphic, its shortcut, its kind, and its action (a
+  lambda, or a task when it asks). The versions of the game edit the
+  tables (`versions`).
+- **A question is an await.** `if (await Ask(text, true, false)) ==
+  K.confirm { ... }`, in the place of a callback for the answer: the
+  quick save, the quick load, the nightmare, the end of the game, the
+  quit. A notice is the same, with any key.
+- **The modals are `solo`.** A question takes the keys and the drawing
+  from the menus behind it, which see nothing until it ends; the name of
+  a saved game being typed takes the keys. The question to quit also
+  takes the close button of the window, which the other questions leave
+  to the menus, which then ask to quit in their place (in C, the
+  question to quit replaced any message).
+- **Closed and open are two tasks in sequence**, inside a `watching` of
+  the close button; the skull is a trail of two awaits.
+- **What reads worse**: the keys and the sounds of the engine are
+  numbers read from C into tables (`K`, `SFX`); the configuration
+  (`showMessages`, the volumes, the sensitivity) stays in variables of
+  C that the native literals write; the order of the sound of a key and
+  of its action needs the action spawned, the sound played, and then the
+  action awaited (`act`).
+- **A difference that no test reaches**: in C, the close button while a
+  name is typed starts the question to quit, but the keys still go to
+  the name first. Here the `watching` ends the typing, and the question
+  takes the keys.
 
 ### What was verified, and what was not
 
-A new test, `menu`, recorded on C (twenty in all): a message with no
-question, the help, the shortcuts of the items, a slider, the key back,
-the sound by its function key, the question to quit and the question of
-the nightmare (answered no), a new game, the question to end it, a
-quick save that picks its slot and then asks, a quick load, the detail,
-the gamma, the size of the screen. The tests `newgame`, `save`,
-`endgame`, `cheat`, and `hu` also go through the menus. Not verified:
-the mouse, the joystick, the close button of the window (the test
-platform posts only keys), and the macros of the keys with
-`vanilla_keyboard_mapping` off.
+The test `menu` (and `newgame`, `save`, `endgame`, `cheat`, `hu`) go
+through the menus, the questions, the notices, the typing, the quick
+save and load, the sliders, the help; twenty-one tests identical. Not
+verified: the mouse, the joystick, the close button of the window, the
+second page of help and the versions of Doom 2 and of the Ultimate Doom.
 
 ## The keys of the automap
 

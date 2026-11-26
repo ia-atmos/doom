@@ -1,22 +1,27 @@
 ;; THE MENUS
 ;;
-;; The keys of the menus: the keys that open them and the shortcuts of
-;; the function keys, the moves of the skull, the items, the answers to
-;; the messages, and the name of a saved game being typed; and the skull
-;; that blinks.
+;; The menus over the game: the main menu and those it leads to (a new
+;; game, the options, the sound, loading and saving, the help), the
+;; function keys that act with the menus closed, the questions (yes or
+;; no) and the notices (any key), the name of a saved game being typed,
+;; and the skull that blinks at the item chosen.
 ;;
-;; In the engine, it was M_Responder and M_Ticker, of
-;; engine/src/doom/m_menu.c. The rest stays there: the menus as data
-;; (each item with a C function to call), those functions, the messages
-;; that they start (each with a C function for the answer), and the
-;; drawing.
+;; In the engine, it was all of engine/src/doom/m_menu.c, which is out of
+;; the build of this program (the engine all in C still has it). The
+;; engine keeps what it reads: `menuactive` (the game pauses, the border
+;; is drawn again), `inhelpscreens`, and the configuration (`showMessages`,
+;; `detailLevel`, `screenblocks`, `mouseSensitivity`).
 ;;
-;; The engine emits, each to its task only:
+;; The engine emits, to the task Menus only:
 ;;
 ;;      :m.key      an input event became a key (M_Responder): it is in
-;;                  `m_key`, `m_ch`, and `m_ev`; the task clears
-;;                  `m_eat` for a key that it does not take
-;;      :m.tic      once per tic (M_Ticker), to the task Skull
+;;                  `m_key` and `m_ch`; the task clears `m_eat` for a key
+;;                  that it does not take
+;;      :m.quit     the close button of the window
+;;      :m.open     the engine opens the main menu (M_StartControlPanel:
+;;                  a key on the title or in a demo)
+;;      :m.draw     the menus are drawn, over everything (M_Drawer)
+;;      :m.tic      once per tic (M_Ticker)
 
 ```:prelude
 #include <ctype.h>
@@ -27,95 +32,65 @@
 #include "dstrings.h"
 #include "sounds.h"
 
+#include "d_main.h"
 #include "deh_main.h"
 #include "g_game.h"
 #include "hu_stuff.h"
 #include "i_input.h"
 #include "i_joystick.h"
+#include "i_sound.h"
 #include "i_system.h"
 #include "i_timer.h"
 #include "i_video.h"
+#include "m_argv.h"
 #include "m_controls.h"
 #include "m_menu.h"
 #include "m_misc.h"
 #include "p_saveg.h"
+#include "p_setup.h"
+#include "r_main.h"
 #include "s_sound.h"
+#include "v_video.h"
 #include "w_wad.h"
 #include "z_zone.h"
 
-// Types of engine/src/doom/m_menu.c.
-typedef struct
-{
-    short	status;         // 0: no cursor, 1: ok, 2: arrows ok, -1: a hole
-    char	name[10];
-    void	(*routine)(int choice);
-    char	alphaKey;
-} menuitem_t;
+// What the engine reads of the menus, and its configuration binds.
+int     mouseSensitivity = 5;
+int     showMessages = 1;
+int     detailLevel = 0;
+int     screenblocks = 9;
+boolean inhelpscreens;
+boolean menuactive;
 
-typedef struct menu_s
-{
-    short		numitems;
-    struct menu_s*	prevMenu;
-    menuitem_t*		menuitems;
-    void		(*routine)();
-    short		x;
-    short		y;
-    short		lastOn;
-} menu_t;
+extern boolean message_dontfuckwithme;      // hu_stuff.c
 
-#define M_SFX_VOL 0     // the first item of the menu of the sound
-
-// Variables and functions of engine/src/doom/m_menu.c.
-extern int		messageToPrint;
-extern int		messageLastMenuActive;
-extern boolean		messageNeedsInput;
-extern void		(*messageRoutine)(int response);
-extern char		gammamsg[5][26];
-extern int		saveStringEnter;
-extern int		saveSlot;
-extern int		saveCharIndex;
-extern boolean		joypadSave;
-extern char		saveOldString[SAVESTRINGSIZE];
-extern char		savegamestrings[10][SAVESTRINGSIZE];
-extern short		itemOn;
-extern short		whichSkull;
-extern menu_t*		currentMenu;
-extern menu_t		ReadDef1, ReadDef2, SoundDef, SaveDef;
-extern boolean		chat_on;
-
-void M_LoadGame(int choice);
-void M_SaveGame(int choice);
-void M_EndGame(int choice);
-void M_QuitDOOM(int choice);
-void M_QuitResponse(int key);
-void M_ChangeMessages(int choice);
-void M_ChangeDetail(int choice);
-void M_SizeDisplay(int choice);
-void M_QuickSave(void);
-void M_QuickLoad(void);
-void M_DoSave(int slot);
-int  M_StringWidth(const char *string);
-void M_ClearMenus (void);
-
-// The tasks Menu and Skull, which alone await :m.key and :m.tic.
-static AVal MENU, SKULL;
-static int MENU_ON = 0;
+// The task Menus, which alone awaits the events of this part.
+static AVal MENUS;
+static int MENUS_ON = 0;
 
 static int m_key;           // the key of :m.key
 static int m_ch;            // the character typed, or 0
 static event_t* m_ev;
 static boolean m_eat;       // the key was taken
 
+// What the joystick needs to know to make its keys: a question is on
+// screen, a name is being typed, the menu to save is open. The task
+// keeps them.
+static int m_asking = 0;
+static int m_typing = 0;
+static int m_saving = 0;
+static boolean m_joypad_save = false;
+
+static const char* gammamsg[5] = {
+    GAMMALVL0, GAMMALVL1, GAMMALVL2, GAMMALVL3, GAMMALVL4
+};
+
 // Called by the engine with an input event: the test of the controls,
 // the close button of the window, and the joystick and the mouse made
-// keys, as they were; then the key goes to the task Menu.
-boolean M_Responder (event_t* ev)
-{
-    doom_start();
-
+// keys, as they were; then the key goes to the task Menus.
+boolean M_Responder (event_t* ev) {
     int             ch;
     int             key;
-    int             i;
     static  int     mousewait = 0;
     static  int     mousey = 0;
     static  int     lasty = 0;
@@ -123,462 +98,1064 @@ boolean M_Responder (event_t* ev)
     static  int     lastx = 0;
     int dir;
 
+    doom_start();
+
     // In testcontrols mode, none of the function keys should do anything
     // - the only key is escape to quit.
-
-    if (testcontrols)
-    {
+    if (testcontrols) {
         if (ev->type == ev_quit
          || (ev->type == ev_keydown
-          && (ev->data1 == key_menu_activate || ev->data1 == key_menu_quit)))
-        {
+          && (ev->data1 == key_menu_activate || ev->data1 == key_menu_quit))) {
             I_Quit();
             return true;
         }
-
         return false;
     }
 
     // "close" button pressed on window?
-    if (ev->type == ev_quit)
-    {
-        // First click on close button = bring up quit confirm message.
-        // Second click on close button = confirm quit
-
-        if (menuactive && messageToPrint && messageRoutine == M_QuitResponse)
-        {
-            M_QuitResponse(key_menu_confirm);
+    if (ev->type == ev_quit) {
+        if (MENUS_ON) {
+            doom_emit_to(MENUS, "m.quit");
         }
-        else
-        {
-            S_StartSound(NULL,sfx_swtchn);
-            M_QuitDOOM(0);
-        }
-
         return true;
     }
 
-    // key is the key pressed, ch is the actual character typed
-  
     ch = 0;
     key = -1;
-	
-    if (ev->type == ev_joystick)
-    {
-        // Simulate key presses from joystick events to interact with the menu.
 
-        if (menuactive)
-        {
-            if (JOY_GET_DPAD(ev->data6) != JOY_DIR_NONE)
-            {
+    if (ev->type == ev_joystick) {
+        if (menuactive) {
+            if (JOY_GET_DPAD(ev->data6) != JOY_DIR_NONE) {
                 dir = JOY_GET_DPAD(ev->data6);
-            }
-            else if (JOY_GET_LSTICK(ev->data6) != JOY_DIR_NONE)
-            {
+            } else if (JOY_GET_LSTICK(ev->data6) != JOY_DIR_NONE) {
                 dir = JOY_GET_LSTICK(ev->data6);
-            }
-            else
-            {
+            } else {
                 dir = JOY_GET_RSTICK(ev->data6);
             }
-
-            if (dir & JOY_DIR_UP)
-            {
+            if (dir & JOY_DIR_UP) {
                 key = key_menu_up;
                 joywait = I_GetTime() + 5;
-            }
-            else if (dir & JOY_DIR_DOWN)
-            {
+            } else if (dir & JOY_DIR_DOWN) {
                 key = key_menu_down;
                 joywait = I_GetTime() + 5;
             }
-            if (dir & JOY_DIR_LEFT)
-            {
+            if (dir & JOY_DIR_LEFT) {
                 key = key_menu_left;
                 joywait = I_GetTime() + 5;
-            }
-            else if (dir & JOY_DIR_RIGHT)
-            {
+            } else if (dir & JOY_DIR_RIGHT) {
                 key = key_menu_right;
                 joywait = I_GetTime() + 5;
             }
-
 #define JOY_BUTTON_MAPPED(x) ((x) >= 0)
 #define JOY_BUTTON_PRESSED(x) (JOY_BUTTON_MAPPED(x) && (ev->data1 & (1 << (x))) != 0)
-
-            if (JOY_BUTTON_PRESSED(joybfire))
-            {
-                // Simulate a 'Y' keypress when Doom show a Y/N dialog with Fire button.
-                if (messageToPrint && messageNeedsInput)
-                {
-                    key = key_menu_confirm;
-                }
-                // Simulate pressing "Enter" when we are supplying a save slot name
-                else if (saveStringEnter)
-                {
-                    key = KEY_ENTER;
-                }
-                else
-                {
-                    // if selecting a save slot via joypad, set a flag
-                    if (currentMenu == &SaveDef)
-                    {
-                        joypadSave = true;
+            if (JOY_BUTTON_PRESSED(joybfire)) {
+                if (m_asking) {
+                    key = key_menu_confirm;     // yes, to a question
+                } else if (m_typing) {
+                    key = KEY_ENTER;            // the name is done
+                } else {
+                    if (m_saving) {
+                        m_joypad_save = true;
                     }
                     key = key_menu_forward;
                 }
                 joywait = I_GetTime() + 5;
             }
-            if (JOY_BUTTON_PRESSED(joybuse))
-            {
-                // Simulate a 'N' keypress when Doom show a Y/N dialog with Use button.
-                if (messageToPrint && messageNeedsInput)
-                {
-                    key = key_menu_abort;
-                }
-                // If user was entering a save name, back out
-                else if (saveStringEnter)
-                {
+            if (JOY_BUTTON_PRESSED(joybuse)) {
+                if (m_asking) {
+                    key = key_menu_abort;       // no, to a question
+                } else if (m_typing) {
                     key = KEY_ESCAPE;
-                }
-                else
-                {
+                } else {
                     key = key_menu_back;
                 }
                 joywait = I_GetTime() + 5;
             }
         }
-        if (JOY_BUTTON_PRESSED(joybmenu))
-        {
+        if (JOY_BUTTON_PRESSED(joybmenu)) {
             key = key_menu_activate;
             joywait = I_GetTime() + 5;
         }
+    } else {
+        if (ev->type == ev_mouse && mousewait < I_GetTime() && menuactive) {
+            mousey += ev->data3;
+            if (mousey < lasty-30) {
+                key = key_menu_down;
+                mousewait = I_GetTime() + 5;
+                mousey = lasty -= 30;
+            } else if (mousey > lasty+30) {
+                key = key_menu_up;
+                mousewait = I_GetTime() + 5;
+                mousey = lasty += 30;
+            }
+            mousex += ev->data2;
+            if (mousex < lastx-30) {
+                key = key_menu_left;
+                mousewait = I_GetTime() + 5;
+                mousex = lastx -= 30;
+            } else if (mousex > lastx+30) {
+                key = key_menu_right;
+                mousewait = I_GetTime() + 5;
+                mousex = lastx += 30;
+            }
+            if (ev->data1&1) {
+                key = key_menu_forward;
+                mousewait = I_GetTime() + 15;
+            }
+            if (ev->data1&2) {
+                key = key_menu_back;
+                mousewait = I_GetTime() + 15;
+            }
+        } else {
+            if (ev->type == ev_keydown) {
+                key = ev->data1;
+                ch = ev->data2;
+            }
+        }
     }
-    else
-    {
-	if (ev->type == ev_mouse && mousewait < I_GetTime() && menuactive)
-	{
-	    mousey += ev->data3;
-	    if (mousey < lasty-30)
-	    {
-		key = key_menu_down;
-		mousewait = I_GetTime() + 5;
-		mousey = lasty -= 30;
-	    }
-	    else if (mousey > lasty+30)
-	    {
-		key = key_menu_up;
-		mousewait = I_GetTime() + 5;
-		mousey = lasty += 30;
-	    }
-		
-	    mousex += ev->data2;
-	    if (mousex < lastx-30)
-	    {
-		key = key_menu_left;
-		mousewait = I_GetTime() + 5;
-		mousex = lastx -= 30;
-	    }
-	    else if (mousex > lastx+30)
-	    {
-		key = key_menu_right;
-		mousewait = I_GetTime() + 5;
-		mousex = lastx += 30;
-	    }
-		
-	    if (ev->data1&1)
-	    {
-		key = key_menu_forward;
-		mousewait = I_GetTime() + 15;
-	    }
-			
-	    if (ev->data1&2)
-	    {
-		key = key_menu_back;
-		mousewait = I_GetTime() + 15;
-	    }
-	}
-	else
-	{
-	    if (ev->type == ev_keydown)
-	    {
-		key = ev->data1;
-		ch = ev->data2;
-	    }
-	}
+
+    if (key == -1) {
+        return false;
     }
-    
-    if (key == -1)
-	return false;
 
     m_key = key;
     m_ch = ch;
     m_ev = ev;
     m_eat = true;
-    if (MENU_ON) {
-        doom_emit_to(MENU, "m.key");
+    if (MENUS_ON) {
+        doom_emit_to(MENUS, "m.key");
     }
     return m_eat;
 }
 
-// Called by the engine once per tic.
 void M_Ticker (void) {
     doom_start();
-    if (MENU_ON) {
-        doom_emit_to(SKULL, "m.tic");
+    if (MENUS_ON) {
+        doom_emit_to(MENUS, "m.tic");
     }
 }
 
-// A character of the name of a saved game, if the font has it and the
-// name has room.
-static void m_type_char (void) {
-    event_t* ev = m_ev;
-    int ch;
-    // Vanilla has a bug where the shift key is ignored when entering a
-    // savegame name: it is emulated with vanilla_keyboard_mapping.
-    if (ev->type != ev_keydown) {
-        return;
+void M_Drawer (void) {
+    doom_start();
+    inhelpscreens = false;
+    if (MENUS_ON) {
+        doom_emit_to(MENUS, "m.draw");
     }
-    if (vanilla_keyboard_mapping) {
-        ch = ev->data1;
+}
+
+void M_StartControlPanel (void) {
+    doom_start();
+    if (MENUS_ON) {
+        doom_emit_to(MENUS, "m.open");
+    }
+}
+
+// The menus are made when the program starts, which is after this call:
+// the program must not start here, before the engine starts a game by
+// -warp (see doom_start).
+void M_Init (void) {
+}
+
+// The character of a name being typed, as the engine gives it: Vanilla
+// ignores the shift key there, which `vanilla_keyboard_mapping` keeps.
+static int m_typed (void) {
+    return toupper(vanilla_keyboard_mapping ? m_ev->data1 : m_ev->data3);
+}
+
+// The description of the game saved in a slot (its first bytes), or
+// NULL if there is none.
+static const char* m_save_name (int slot) {
+    static char name[SAVESTRINGSIZE+1];
+    FILE* f = M_fopen(P_SaveGameFile(slot), "rb");
+    if (f == NULL) {
+        return NULL;
+    }
+    memset(name, 0, sizeof(name));
+    int n = fread(name, 1, SAVESTRINGSIZE, f);
+    fclose(f);
+    return (n == SAVESTRINGSIZE) ? name : NULL;
+}
+
+// The name that a slot gets when the joystick saves into an empty one:
+// the map, and the WAD if it is not the IWAD.
+static const char* m_default_name (void) {
+    static char name[SAVESTRINGSIZE];
+    if (W_IsIWADLump(maplumpinfo) && strcmp(savegamedir, "")) {
+        M_snprintf(name, SAVESTRINGSIZE, "%s", maplumpinfo->name);
     } else {
-        ch = ev->data3;
+        char *wadname = M_StringDuplicate(W_WadNameForLump(maplumpinfo));
+        char *ext = strrchr(wadname, '.');
+        if (ext != NULL) {
+            *ext = '\0';
+        }
+        M_snprintf(name, SAVESTRINGSIZE, "%s (%s)", maplumpinfo->name, wadname);
+        free(wadname);
     }
-    ch = toupper(ch);
-    if (ch != ' '
-     && (ch - HU_FONTSTART < 0 || ch - HU_FONTSTART >= HU_FONTSIZE)) {
-        return;
-    }
-    if (ch >= 32 && ch <= 127 &&
-        saveCharIndex < SAVESTRINGSIZE-1 &&
-        M_StringWidth(savegamestrings[saveSlot]) < (SAVESTRINGSIZE-2)*8) {
-        savegamestrings[saveSlot][saveCharIndex++] = ch;
-        savegamestrings[saveSlot][saveCharIndex] = 0;
-    }
+    M_ForceUppercase(name);
+    return name;
 }
 
-// The next item, after the current one and around, whose shortcut is
-// the character: true if found (it becomes the current one).
-static boolean m_shortcut (int ch) {
-    int i;
-    for (i = itemOn+1;i < currentMenu->numitems;i++) {
-        if (currentMenu->menuitems[i].alphaKey == ch) {
-            itemOn = i;
-            S_StartSound(NULL,sfx_pstop);
-            return true;
-        }
-    }
-    for (i = 0;i <= itemOn;i++) {
-        if (currentMenu->menuitems[i].alphaKey == ch) {
-            itemOn = i;
-            S_StartSound(NULL,sfx_pstop);
-            return true;
-        }
-    }
-    return false;
-}
-
-// Keys that Vanilla takes as a shortcut with no character.
-static boolean m_nullkey (int key) {
-    return key == KEY_PAUSE || key == KEY_CAPSLOCK
-        || key == KEY_SCRLCK || key == KEY_NUMLOCK;
+static const char* m_opl_dev (void) {
+    static char debug[1024];
+    I_OPL_DevMessages(debug, sizeof(debug));
+    return debug;
 }
 ```
 
-;; THE SKULL: it blinks every 8 tics, the first time after 10.
-task Skull () {
-    val me = task
-    `SKULL = $me;`
-    await (10, :m.tic)
-    loop {
-        `whichSkull ^= 1;`
-        await (8, :m.tic)
+val LINEHEIGHT = 16
+val SKULLXOFF  = -32
+
+;; The keys of the menus, as the configuration binds them (read when
+;; the engine starts, after the configuration).
+pin var K = nil
+func keys () {
+    set K = [
+    activate   = `:number key_menu_activate`,
+    up         = `:number key_menu_up`,
+    down       = `:number key_menu_down`,
+    left       = `:number key_menu_left`,
+    right      = `:number key_menu_right`,
+    back       = `:number key_menu_back`,
+    forward    = `:number key_menu_forward`,
+    confirm    = `:number key_menu_confirm`,
+    abort      = `:number key_menu_abort`,
+    help       = `:number key_menu_help`,
+    save       = `:number key_menu_save`,
+    load       = `:number key_menu_load`,
+    volume     = `:number key_menu_volume`,
+    detail     = `:number key_menu_detail`,
+    qsave      = `:number key_menu_qsave`,
+    endgame    = `:number key_menu_endgame`,
+    messages   = `:number key_menu_messages`,
+    qload      = `:number key_menu_qload`,
+    quit       = `:number key_menu_quit`,
+    gamma      = `:number key_menu_gamma`,
+    screenshot = `:number key_menu_screenshot`,
+    decscreen  = `:number key_menu_decscreen`,
+    incscreen  = `:number key_menu_incscreen`,
+    enter      = `:number KEY_ENTER`,
+    escape     = `:number KEY_ESCAPE`,
+    backspace  = `:number KEY_BACKSPACE`,
+    ]
+}
+
+func sound (sfx) {
+    `S_StartSound(NULL, (int) a_dbl($sfx));`
+}
+
+val SFX = [
+    pstop  = `:number sfx_pstop`,
+    swtchn = `:number sfx_swtchn`,
+    swtchx = `:number sfx_swtchx`,
+    stnmov = `:number sfx_stnmov`,
+    pistol = `:number sfx_pistol`,
+    oof    = `:number sfx_oof`,
+]
+
+;; THE STATE OF THE MENUS
+;;
+;; `cur` is the menu on screen (or the last one, while they are closed),
+;; `item` the item of the skull; `quick` the slot of the quick save (-1:
+;; none yet, -2: the next save picks it); `saves` the names of the six
+;; slots; `typing` the slot whose name is typed; `epi` the episode of a
+;; new game; `asked`, that a question or a notice was answered.
+pin M = [
+    cur    = nil,
+    item   = 0,
+    skull  = 0,
+    quick  = -1,
+    saves  = ["", "", "", "", "", ""],
+    typing = nil,
+    epi    = 0,
+    size   = 0,
+    asked  = false,
+    opl    = false,
+]
+
+;; WRITING WITH THE FONT OF THE MESSAGES
+
+func m_text (x, y, text) {
+    var cx = x
+    var cy = y
+    loop i in #text {
+        val c = string.byte(text, i)
+        if c == 10 {
+            set cx = x
+            set cy += 12
+        } else {
+            val name = font_patch(c)
+            if !name {
+                set cx += 4
+            } else {
+                val w = patch_width(name)
+                until (cx + w) > 320
+                patch_draw(cx, cy, name)
+                set cx += w
+            }
+        }
     }
 }
 
-;; A key while the name of a saved game is typed: it ends with enter
-;; (the game is saved, if the name is not empty) or escape (the old name
-;; is back).
-func m_type (key) {
-    ifs {
-        key == `:number KEY_BACKSPACE` => {
-            `if (saveCharIndex > 0) { saveCharIndex--; savegamestrings[saveSlot][saveCharIndex] = 0; }`
-        }
-        key == `:number KEY_ESCAPE` => {
-            `saveStringEnter = 0;`
-            `I_StopTextInput();`
-            `M_StringCopy(savegamestrings[saveSlot], saveOldString, SAVESTRINGSIZE);`
-        }
-        key == `:number KEY_ENTER` => {
-            `saveStringEnter = 0;`
-            `I_StopTextInput();`
-            `if (savegamestrings[saveSlot][0]) M_DoSave(saveSlot);`
-        }
-        else => `m_type_char();`
+;; A text of lines, each one in the middle of the screen, all of them in
+;; the middle too (a line has at most 79 characters).
+func m_message (text) {
+    val h     = patch_height("STCFN033")
+    val lines = string.split(text, "\n")
+    var y = 100 - ((h * #lines) // 2)
+    loop _, line in lines {
+        val l = string.sub(line, 0, 78)
+        m_text(160 - (font_width(l) // 2), y, l)
+        set y += h
     }
 }
 
-;; A key while a message is on screen: a message that asks takes only
-;; an answer (yes, no, space, escape); the function of the message gets
-;; it, and the menu closes.
-func m_answer (key) {
-    val answer = (key == `:number ' '`) || (key == `:number KEY_ESCAPE`) ||
-                 (key == `:number key_menu_confirm`) || (key == `:number key_menu_abort`)
-    if `:boolean messageNeedsInput` && (!answer) {
-        `m_eat = false;`
+;; A bar with `w` steps and its mark at `dot`.
+func m_thermo (x, y, w, dot) {
+    patch_draw(x, y, "M_THERML")
+    loop i in w {
+        patch_draw(x + 8 + (i * 8), y, "M_THERMM")
+    }
+    patch_draw(x + 8 + (w * 8), y, "M_THERMR")
+    patch_draw(x + 8 + (dot * 8), y, "M_THERMO")
+}
+
+;; The frame of the name of a saved game, and the name.
+func m_slots (menu) {
+    loop i in 6 {
+        val y = menu.y + (LINEHEIGHT * i)
+        patch_draw(menu.x - 8, y + 7, "M_LSLEFT")
+        loop j in 24 {
+            patch_draw(menu.x + (j * 8), y + 7, "M_LSCNTR")
+        }
+        patch_draw(menu.x + (24 * 8), y + 7, "M_LSRGHT")
+        m_text(menu.x, y, M.saves@i)
+    }
+}
+
+;; THE QUESTIONS AND THE NOTICES
+;;
+;; A text over everything, until a key answers it: any key for a notice,
+;; and only yes, no, space, or escape for a question (the others are not
+;; taken). It takes the keys and the drawing from the menus behind it,
+;; which see nothing until it ends. The question to quit also takes the
+;; close button of the window, as a yes. It returns the key, and leaves
+;; the menus to close when the one that asked is done (see `act`).
+task Asking (text, question, quit) {
+    par :any {
+        loop on :m.draw {
+            m_message(text)
+        }
+    } with {
+        await :m.quit until quit
+        K.confirm
+    } with {
+        loop on :m.key {
+            val k = `:number m_key`
+            until (!question) || (k == 32) || (k == K.escape) ||
+                  (k == K.confirm) || (k == K.abort), k
+            `m_eat = false;`
+        }
+    }
+}
+
+task Ask (text, question, quit) {
+    val last = `:boolean menuactive`
+    `menuactive = true;`
+    `m_asking = a_truthy($question);`
+    ;; the question to quit takes the close button too; the others leave
+    ;; it to the menus, which then ask to quit in their place
+    val key = if quit {
+        solo <:m.key || :m.draw || :m.quit> {
+            await Asking(text, question, quit)
+        }
     } else {
-        `menuactive = messageLastMenuActive;`
-        `messageToPrint = 0;`
-        `if (messageRoutine) messageRoutine((int) a_dbl($key));`
-        `menuactive = false;`
-        `S_StartSound(NULL,sfx_swtchx);`
+        solo <:m.key || :m.draw> {
+            await Asking(text, question, quit)
+        }
+    }
+    `m_asking = 0;`
+    `menuactive = a_truthy($last);`
+    set M.asked = true
+    key
+}
+
+;; A text of the engine, which DeHackEd may replace.
+func deh (text) {
+    `:string DEH_String(A_STR_OF($text)->s)`
+}
+
+;; THE MENUS
+;;
+;; Each one: where it is drawn, what it draws first, the menu that the
+;; key back leads to, the item of the skull when it opens again, and its
+;; items. An item: its graphic, its shortcut (a code, 0 for none), its
+;; kind (1: chosen, 2: a slider with arrows, 0: off, -1: a hole that the
+;; skull skips), and its action.
+
+func item (name, key, act) {
+    [name=name, key=string.byte(key), kind=1, act=act]
+}
+func slider (name, key, act) {
+    [name=name, key=string.byte(key), kind=2, act=act]
+}
+val HOLE = [name="", key=0, kind=-1, act=nil]
+
+pin MAIN = [
+    x=97, y=64, last=0, prev=nil,
+    draw = \{ patch_draw(94, 2, "M_DOOM") },
+]
+pin EPISODE = [
+    x=48, y=63, last=0, prev=MAIN,
+    draw = \{ patch_draw(54, 38, "M_EPISOD") },
+]
+pin SKILL = [
+    x=48, y=63, last=2, prev=EPISODE,
+    draw = \{
+        patch_draw(96, 14, "M_NEWG")
+        patch_draw(54, 38, "M_SKILL")
+    },
+]
+pin OPTIONS = [
+    x=60, y=37, last=0, prev=MAIN,
+    draw = \{
+        patch_draw(108, 15, "M_OPTTTL")
+        patch_draw(60 + 175, 37 + (LINEHEIGHT * 2),
+                   if `:boolean detailLevel` => "M_GDLOW" => "M_GDHIGH")
+        patch_draw(60 + 120, 37 + (LINEHEIGHT * 1),
+                   if `:boolean showMessages` => "M_MSGON" => "M_MSGOFF")
+        m_thermo(60, 37 + (LINEHEIGHT * 6), 10, `:number mouseSensitivity`)
+        m_thermo(60, 37 + (LINEHEIGHT * 4), 9, M.size)
+    },
+]
+pin SOUND = [
+    x=80, y=64, last=0, prev=OPTIONS,
+    draw = \{
+        patch_draw(60, 38, "M_SVOL")
+        m_thermo(80, 64 + (LINEHEIGHT * 1), 16, `:number sfxVolume`)
+        m_thermo(80, 64 + (LINEHEIGHT * 3), 16, `:number musicVolume`)
+    },
+]
+pin READ1 = [
+    x=280, y=185, last=0, prev=MAIN,
+    draw = \{
+        `inhelpscreens = true;`
+        patch_draw(0, 0, "HELP2")
+    },
+]
+pin READ2 = [
+    x=330, y=175, last=0, prev=READ1,
+    draw = \{
+        `inhelpscreens = true;`
+        patch_draw(0, 0, "HELP1")
+    },
+]
+pin LOAD = [
+    x=80, y=54, last=0, prev=MAIN,
+    draw = \{
+        patch_draw(72, 28, "M_LOADG")
+        m_slots(M.cur)
+    },
+]
+pin SAVE = [
+    x=80, y=54, last=0, prev=MAIN,
+    draw = \{
+        patch_draw(72, 28, "M_SAVEG")
+        m_slots(M.cur)
+        if M.typing {
+            val y = M.cur.y + (LINEHEIGHT * M.typing)
+            m_text(M.cur.x + font_width(M.saves@(M.typing)), y, "_")
+        }
+    },
+]
+
+;; MOVING BETWEEN THE MENUS
+
+func setup (menu) {
+    set M.cur  = menu
+    set M.item = menu.last
+}
+
+func open () {
+    if !`:boolean menuactive` {
+        `menuactive = true;`
+        setup(MAIN)
     }
 }
 
-;; A key with the menus closed: the function keys, and the key that
-;; opens the main menu.
-func m_closed (key) {
-    ifs {
-        key == `:number key_menu_decscreen` => {
-            if `:boolean automapactive || chat_on` {
-                `m_eat = false;`
-            } else {
-                `M_SizeDisplay(0); S_StartSound(NULL,sfx_stnmov);`
-            }
-        }
-        key == `:number key_menu_incscreen` => {
-            if `:boolean automapactive || chat_on` {
-                `m_eat = false;`
-            } else {
-                `M_SizeDisplay(1); S_StartSound(NULL,sfx_stnmov);`
-            }
-        }
-        key == `:number key_menu_help` => {
-            `M_StartControlPanel();`
-            `currentMenu = (gameversion >= exe_ultimate) ? &ReadDef2 : &ReadDef1;`
-            `itemOn = 0;`
-            `S_StartSound(NULL,sfx_swtchn);`
-        }
-        key == `:number key_menu_save` => {
-            `M_StartControlPanel(); S_StartSound(NULL,sfx_swtchn); M_SaveGame(0);`
-        }
-        key == `:number key_menu_load` => {
-            `M_StartControlPanel(); S_StartSound(NULL,sfx_swtchn); M_LoadGame(0);`
-        }
-        key == `:number key_menu_volume` => {
-            `M_StartControlPanel(); currentMenu = &SoundDef; itemOn = M_SFX_VOL; S_StartSound(NULL,sfx_swtchn);`
-        }
-        key == `:number key_menu_detail` => {
-            `M_ChangeDetail(0); S_StartSound(NULL,sfx_swtchn);`
-        }
-        key == `:number key_menu_qsave` => {
-            `S_StartSound(NULL,sfx_swtchn); M_QuickSave();`
-        }
-        key == `:number key_menu_endgame` => {
-            `S_StartSound(NULL,sfx_swtchn); M_EndGame(0);`
-        }
-        key == `:number key_menu_messages` => {
-            `M_ChangeMessages(0); S_StartSound(NULL,sfx_swtchn);`
-        }
-        key == `:number key_menu_qload` => {
-            `S_StartSound(NULL,sfx_swtchn); M_QuickLoad();`
-        }
-        key == `:number key_menu_quit` => {
-            `S_StartSound(NULL,sfx_swtchn); M_QuitDOOM(0);`
-        }
-        key == `:number key_menu_gamma` => {
-            `usegamma++; if (usegamma > 4) usegamma = 0;`
-            `players[consoleplayer].message = DEH_String(gammamsg[usegamma]);`
-            `I_SetPalette (W_CacheLumpName (DEH_String("PLAYPAL"),PU_CACHE));`
-        }
-        key == `:number key_menu_activate` => {
-            `M_StartControlPanel(); S_StartSound(NULL,sfx_swtchn);`
-        }
-        else => `m_eat = false;`
+func close () {
+    `menuactive = false;`
+}
+
+;; THE ACTIONS OF THE ITEMS
+;;
+;; A function, or a task when it asks, with the choice (the item, or 0
+;; and 1 for the arrows of a slider).
+
+func read_saves () {
+    loop i in 6 {
+        val name = `:string m_save_name((int) a_dbl($i))`
+        set M.saves@i = if name => name => "empty slot"
+        val it = LOAD.items@i
+        set it.kind = if name => 1 => 0
     }
 }
 
-;; A key with a menu open: the skull moves, an item is chosen or slid,
-;; the menu goes back or closes, or a shortcut moves the skull.
-func m_open (key, ch) {
+func do_save (slot) {
+    val name = M.saves@slot
+    `G_SaveGame((int) a_dbl($slot), A_STR_OF($name)->s);`
+    close()
+    if M.quick == -2 {          ;; the quick save picks its slot
+        set M.quick = slot
+    }
+}
+
+func load_select (choice) {
+    `G_LoadGame(P_SaveGameFile((int) a_dbl($choice)));`
+    close()
+}
+
+task LoadGame (choice) {
+    if `:boolean netgame` {
+        await Ask(deh(`:string LOADNET`), false, false)
+    } else {
+        setup(LOAD)
+        read_saves()
+    }
+}
+
+task SaveGame (choice) {
     ifs {
-        key == `:number key_menu_down` => {
-            loop {
-                `if (itemOn+1 > currentMenu->numitems-1) itemOn = 0; else itemOn++;`
-                `S_StartSound(NULL,sfx_pstop);`
-                while `:boolean currentMenu->menuitems[itemOn].status == -1`
-            }
+        !`:boolean usergame` => await Ask(deh(`:string SAVEDEAD`), false, false)
+        `:boolean gamestate == GS_LEVEL` => {
+            setup(SAVE)
+            read_saves()
         }
-        key == `:number key_menu_up` => {
-            loop {
-                `if (!itemOn) itemOn = currentMenu->numitems-1; else itemOn--;`
-                `S_StartSound(NULL,sfx_pstop);`
-                while `:boolean currentMenu->menuitems[itemOn].status == -1`
-            }
+    }
+}
+
+;; The name of a saved game, typed in its slot, until enter (it saves,
+;; if the name is not empty) or escape (the old name is back). It takes
+;; the keys from the menus.
+task SaveSelect (choice) {
+    val old = M.saves@choice
+    if old == "empty slot" {
+        set M.saves@choice = if `:boolean m_joypad_save` {
+            `m_joypad_save = false;`
+            `:string m_default_name()`
+        } else {
+            ""
         }
-        key == `:number key_menu_left` => {
-            if `:boolean currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2` {
-                `S_StartSound(NULL,sfx_stnmov);`
-                `currentMenu->menuitems[itemOn].routine(0);`
-            }
-        }
-        key == `:number key_menu_right` => {
-            if `:boolean currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2` {
-                `S_StartSound(NULL,sfx_stnmov);`
-                `currentMenu->menuitems[itemOn].routine(1);`
-            }
-        }
-        key == `:number key_menu_forward` => {
-            if `:boolean currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status` {
-                `currentMenu->lastOn = itemOn;`
-                if `:boolean currentMenu->menuitems[itemOn].status == 2` {
-                    `currentMenu->menuitems[itemOn].routine(1);`      ;; as the right arrow
-                    `S_StartSound(NULL,sfx_stnmov);`
-                } else {
-                    `currentMenu->menuitems[itemOn].routine(itemOn);`
-                    `S_StartSound(NULL,sfx_pistol);`
+    }
+    set M.typing = choice
+    `m_typing = 1;`
+    val x = SAVE.x - 11
+    val y = SAVE.y + (choice * LINEHEIGHT) - 4
+    `I_StartTextInput(a_dbl($x), a_dbl($y), a_dbl($x) + 8 + 24 * 8 + 8, a_dbl($y) + 16 - 2);`
+    solo :m.key {
+        loop on :m.key {
+            val k = `:number m_key`
+            val name = M.saves@choice
+            ifs {
+                k == K.backspace => {
+                    if #name > 0 {
+                        set M.saves@choice = string.sub(name, 0, -2)
+                    }
+                }
+                k == K.escape => {
+                    set M.saves@choice = old
+                    break
+                }
+                k == K.enter => {
+                    if #name > 0 {
+                        set M.typing = nil
+                        do_save(choice)
+                    }
+                    break
+                }
+                else => {
+                    val c = `:number m_typed()`
+                    val fits = (c >= 32) && (c <= 127) && (#name < 23) && (font_width(name) < 176)
+                    if fits && ((c == 32) || font_patch(c)) {
+                        set M.saves@choice = name ++ string.char(c)
+                    }
                 }
             }
         }
-        key == `:number key_menu_activate` => {
-            `currentMenu->lastOn = itemOn;`
-            `M_ClearMenus();`
-            `S_StartSound(NULL,sfx_swtchx);`
-        }
-        key == `:number key_menu_back` => {
-            `currentMenu->lastOn = itemOn;`
-            `if (currentMenu->prevMenu) { currentMenu = currentMenu->prevMenu; itemOn = currentMenu->lastOn; S_StartSound(NULL,sfx_swtchn); }`
-        }
-        (ch != 0) || `:boolean m_nullkey(m_key)` => {
-            ;; Vanilla jumps to the sliders with some keys: emulated
-            `m_eat = m_shortcut(m_ch);`
-        }
-        else => `m_eat = false;`
     }
+    set M.typing = nil
+    `m_typing = 0;`
+    `I_StopTextInput();`
 }
 
-;; THE MENU: each key goes, in this order, to the name being typed, to
-;; the message on screen, to the screenshot, and then to the closed or
-;; to the open menus. The functions of the items and of the messages,
-;; in C, are what open and close the menus, start the messages, and
-;; start the typing.
-task Menu () {
-    val me = task
-    `MENU = $me; MENU_ON = 1;`
-    loop on :m.key {
-        val key = `:number m_key`
-        val ch  = `:number m_ch`
-        ifs {
-            `:boolean saveStringEnter` => m_type(key)
-            `:boolean messageToPrint`  => m_answer(key)
-            `:boolean (devparm && m_key == key_menu_help) || (m_key != 0 && m_key == key_menu_screenshot)` => {
-                `G_ScreenShot();`
+task QuickSave () {
+    ifs {
+        !`:boolean usergame` => sound(SFX.oof)
+        !`:boolean gamestate == GS_LEVEL` => nil
+        M.quick < 0 => {
+            open()
+            read_saves()
+            setup(SAVE)
+            set M.quick = -2
+        }
+        else => {
+            val text = string.format(deh(`:string QSPROMPT`), M.saves@(M.quick))
+            if (await Ask(text, true, false)) == K.confirm {
+                do_save(M.quick)
+                sound(SFX.swtchx)
             }
-            !`:boolean menuactive` => m_closed(key)
-            else => m_open(key, ch)
         }
     }
 }
 
-spawn Skull()
-spawn Menu()
+task QuickLoad () {
+    ifs {
+        `:boolean netgame` => await Ask(deh(`:string QLOADNET`), false, false)
+        M.quick < 0        => await Ask(deh(`:string QSAVESPOT`), false, false)
+        else => {
+            val text = string.format(deh(`:string QLPROMPT`), M.saves@(M.quick))
+            if (await Ask(text, true, false)) == K.confirm {
+                load_select(M.quick)
+                sound(SFX.swtchx)
+            }
+        }
+    }
+}
+
+task NewGame (choice) {
+    if `:boolean netgame && !demoplayback` {
+        await Ask(deh(`:string NEWGAME`), false, false)
+    } else {
+        setup(if `:boolean gamemode == commercial || gameversion == exe_chex` => SKILL => EPISODE)
+    }
+}
+
+task Episode (choice) {
+    if `:boolean gamemode == shareware` && (choice != 0) {
+        setup(READ1)
+        await Ask(deh(`:string SWSTRING`), false, false)
+    } else {
+        set M.epi = choice
+        setup(SKILL)
+    }
+}
+
+task ChooseSkill (choice) {
+    if choice == 4 {                ;; nightmare
+        if (await Ask(deh(`:string NIGHTMARE`), true, false)) == K.confirm {
+            val epi = M.epi
+            `G_DeferedInitNew(a_dbl($choice), a_dbl($epi) + 1, 1);`
+            close()
+        }
+    } else {
+        val epi = M.epi
+        `G_DeferedInitNew((int) a_dbl($choice), a_dbl($epi) + 1, 1);`
+        close()
+    }
+}
+
+task EndGame (choice) {
+    ifs {
+        !`:boolean usergame` => sound(SFX.oof)
+        `:boolean netgame`   => await Ask(deh(`:string NETEND`), false, false)
+        else => {
+            if (await Ask(deh(`:string ENDGAME`), true, false)) == K.confirm {
+                set M.cur.last = M.item
+                close()
+                `D_StartTitle();`
+            }
+        }
+    }
+}
+
+val QUIT_SOUNDS = [
+    `:number sfx_pldeth`, `:number sfx_dmpain`, `:number sfx_popain`, `:number sfx_slop`,
+    `:number sfx_telept`, `:number sfx_posit1`, `:number sfx_posit3`, `:number sfx_sgtatk`,
+]
+val QUIT_SOUNDS2 = [
+    `:number sfx_vilact`, `:number sfx_getpow`, `:number sfx_boscub`, `:number sfx_slop`,
+    `:number sfx_skeswg`, `:number sfx_kntdth`, `:number sfx_bspact`, `:number sfx_sgtatk`,
+]
+
+task QuitDOOM (choice) {
+    val msg = if `:boolean logical_gamemission == doom` {
+        `:string doom1_endmsg[gametic % NUM_QUITMESSAGES]`
+    } else {
+        `:string doom2_endmsg[gametic % NUM_QUITMESSAGES]`
+    }
+    val text = string.format(deh(`:string "%s\n\n" DOSY`), deh(msg))
+    if (await Ask(text, true, true)) == K.confirm {
+        if !`:boolean netgame` {
+            val i = (`:number gametic` >> 2) & 7
+            sound(if `:boolean gamemode == commercial` => QUIT_SOUNDS2@i => QUIT_SOUNDS@i)
+            `I_WaitVBL(105);`
+        }
+        `I_Quit();`
+    }
+}
+
+func change_messages (choice) {
+    `showMessages = 1 - showMessages;`
+    `players[consoleplayer].message = DEH_String(showMessages ? MSGON : MSGOFF);`
+    `message_dontfuckwithme = true;`
+}
+
+func change_detail (choice) {
+    `detailLevel = 1 - detailLevel;`
+    `R_SetViewSize (screenblocks, detailLevel);`
+    `players[consoleplayer].message = DEH_String(detailLevel ? DETAILLO : DETAILHI);`
+}
+
+;; A slider: one step down (0) or up (1), within its ends.
+func step (v, choice, max) {
+    ifs {
+        (choice == 0) && (v > 0)   => v - 1
+        (choice == 1) && (v < max) => v + 1
+        else => v
+    }
+}
+
+func size_display (choice) {
+    val old  = M.size
+    val size = step(old, choice, 8)
+    `screenblocks += a_dbl($size) - a_dbl($old);`
+    set M.size = size
+    `R_SetViewSize (screenblocks, detailLevel);`
+}
+
+set MAIN.items = [
+    item("M_NGAME",  "n", NewGame),
+    item("M_OPTION", "o", \{ setup(OPTIONS) }),
+    item("M_LOADG",  "l", LoadGame),
+    item("M_SAVEG",  "s", SaveGame),
+    item("M_RDTHIS", "r", \{ setup(READ1) }),       ;; another hickup with Special edition
+    item("M_QUITG",  "q", QuitDOOM),
+]
+set EPISODE.items = [
+    item("M_EPI1", "k", Episode),
+    item("M_EPI2", "t", Episode),
+    item("M_EPI3", "i", Episode),
+    item("M_EPI4", "t", Episode),
+]
+set SKILL.items = [
+    item("M_JKILL", "i", ChooseSkill),
+    item("M_ROUGH", "h", ChooseSkill),
+    item("M_HURT",  "h", ChooseSkill),
+    item("M_ULTRA", "u", ChooseSkill),
+    item("M_NMARE", "n", ChooseSkill),
+]
+set OPTIONS.items = [
+    item("M_ENDGAM",   "e", EndGame),
+    item("M_MESSG",    "m", change_messages),
+    item("M_DETAIL",   "g", change_detail),
+    slider("M_SCRNSZ", "s", size_display),
+    HOLE,
+    slider("M_MSENS",  "m", \{
+        val v = step(`:number mouseSensitivity`, it, 9)
+        `mouseSensitivity = a_dbl($v);`
+    }),
+    HOLE,
+    item("M_SVOL",     "s", \{ setup(SOUND) }),
+]
+set SOUND.items = [
+    slider("M_SFXVOL", "s", \{
+        val v = step(`:number sfxVolume`, it, 15)
+        `sfxVolume = a_dbl($v); S_SetSfxVolume(sfxVolume * 8);`
+    }),
+    HOLE,
+    slider("M_MUSVOL", "m", \{
+        val v = step(`:number musicVolume`, it, 15)
+        `musicVolume = a_dbl($v); S_SetMusicVolume(musicVolume * 8);`
+    }),
+    HOLE,
+]
+set READ1.items = [ [name="", key=0, kind=1, act=\{ setup(READ2) }] ]
+set READ2.items = [ [name="", key=0, kind=1, act=\{ setup(MAIN) }] ]
+set LOAD.items = [
+    item("", "1", load_select), item("", "2", load_select), item("", "3", load_select),
+    item("", "4", load_select), item("", "5", load_select), item("", "6", load_select),
+]
+set SAVE.items = [
+    item("", "1", SaveSelect), item("", "2", SaveSelect), item("", "3", SaveSelect),
+    item("", "4", SaveSelect), item("", "5", SaveSelect), item("", "6", SaveSelect),
+]
+
+;; The versions of the game: the Ultimate Doom has one page of help, Doom
+;; 2 no episodes, and the versions before the Ultimate three episodes.
+func versions () {
+    if `:boolean gameversion >= exe_ultimate` {
+        val it = MAIN.items@4
+        set it.act = \{ setup(READ2) }
+        set READ2.prev = nil
+    }
+    if `:boolean gameversion >= exe_final && gameversion <= exe_final2` {
+        set READ2.draw = \{
+            `inhelpscreens = true;`
+            patch_draw(0, 0, "HELP")
+        }
+    }
+    if `:boolean gamemode == commercial` {
+        set MAIN.items = [MAIN.items@0, MAIN.items@1, MAIN.items@2, MAIN.items@3, MAIN.items@5]
+        set MAIN.y += 8
+        set SKILL.prev = MAIN
+        set READ1.draw = \{
+            `inhelpscreens = true;`
+            patch_draw(0, 0, "HELP")
+        }
+        set READ1.x = 330
+        set READ1.y = 165
+        val it = READ1.items@0
+        set it.act = \{ setup(MAIN) }
+    }
+    ifs {
+        `:boolean gameversion < exe_ultimate` => {
+            set EPISODE.items = [EPISODE.items@0, EPISODE.items@1, EPISODE.items@2]
+        }
+        `:boolean gameversion == exe_chex` => {
+            set EPISODE.items = [EPISODE.items@0]
+        }
+    }
+}
+
+;; Does an action: a task is awaited, and a function called. The sound
+;; of the key comes after the action starts, before it waits for an
+;; answer, as in the original. A question or a notice closes the menus
+;; when the action is done.
+task act (f, choice, sfx) {
+    set M.asked = false
+    if f ?? :task {
+        pin t = spawn f(choice)
+        if sfx {
+            sound(sfx)
+        }
+        await t
+    } else {
+        f(choice)
+        if sfx {
+            sound(sfx)
+        }
+    }
+    if M.asked {
+        set M.asked = false
+        close()
+        sound(SFX.swtchx)
+    }
+}
+
+;; The screenshot, with the menus open or closed.
+func shot (k) {
+    (`:boolean devparm` && (k == K.help)) || ((k != 0) && (k == K.screenshot))
+}
+
+;; THE MENUS, CLOSED: the function keys act, and the key of the menus,
+;; or the engine, opens them.
+task Closed () {
+    loop {
+        val e = await <:m.key || :m.open>
+        if e == "m.open" {
+            open()
+        } else {
+            val k = `:number m_key`
+            ifs {
+                shot(k) => `G_ScreenShot();`
+                (k == K.decscreen) || (k == K.incscreen) => {
+                    if `:boolean automapactive || chat_on` {
+                        `m_eat = false;`
+                    } else {
+                        size_display(if k == K.incscreen => 1 => 0)
+                        sound(SFX.stnmov)
+                    }
+                }
+                k == K.help => {
+                    open()
+                    set M.cur  = if `:boolean gameversion >= exe_ultimate` => READ2 => READ1
+                    set M.item = 0
+                    sound(SFX.swtchn)
+                }
+                k == K.save => {
+                    open()
+                    sound(SFX.swtchn)
+                    await act(SaveGame, 0, nil)
+                }
+                k == K.load => {
+                    open()
+                    sound(SFX.swtchn)
+                    await act(LoadGame, 0, nil)
+                }
+                k == K.volume => {
+                    open()
+                    set M.cur  = SOUND
+                    set M.item = 0
+                    sound(SFX.swtchn)
+                }
+                k == K.detail => {
+                    change_detail(0)
+                    sound(SFX.swtchn)
+                }
+                k == K.qsave => {
+                    sound(SFX.swtchn)
+                    await act(QuickSave, 0, nil)
+                }
+                k == K.endgame => {
+                    sound(SFX.swtchn)
+                    await act(EndGame, 0, nil)
+                }
+                k == K.messages => {
+                    change_messages(0)
+                    sound(SFX.swtchn)
+                }
+                k == K.qload => {
+                    sound(SFX.swtchn)
+                    await act(QuickLoad, 0, nil)
+                }
+                k == K.quit => {
+                    sound(SFX.swtchn)
+                    await act(QuitDOOM, 0, nil)
+                }
+                k == K.gamma => {
+                    `usegamma = (usegamma + 1) % 5;`
+                    `players[consoleplayer].message = DEH_String(gammamsg[usegamma]);`
+                    `I_SetPalette (W_CacheLumpName (DEH_String("PLAYPAL"),PU_CACHE));`
+                }
+                k == K.activate => {
+                    open()
+                    sound(SFX.swtchn)
+                }
+                else => `m_eat = false;`
+            }
+        }
+        until `:boolean menuactive`
+    }
+}
+
+;; THE MENUS, OPEN: the skull moves over the items, an item is chosen or
+;; slid, the key back goes to the menu before, the key of the menus
+;; closes them, and a shortcut moves the skull.
+func saving () {
+    val s = M.cur == SAVE
+    `m_saving = a_truthy($s);`
+}
+
+task Open () {
+    saving()
+    loop on :m.key {
+        val k    = `:number m_key`
+        val ch   = `:number m_ch`
+        val menu = M.cur
+        val n    = #menu.items
+        val it   = menu.items@(M.item)
+        ifs {
+            shot(k) => `G_ScreenShot();`
+            (k == K.down) || (k == K.up) => {
+                val d = if k == K.down => 1 => (n - 1)
+                loop {
+                    set M.item = (M.item + d) % n
+                    sound(SFX.pstop)
+                    while (menu.items@(M.item)).kind == -1
+                }
+            }
+            (k == K.left) || (k == K.right) => {
+                if it.act && (it.kind == 2) {
+                    sound(SFX.stnmov)
+                    await act(it.act, if k == K.right => 1 => 0, nil)
+                }
+            }
+            k == K.forward => {
+                if it.act && (it.kind != 0) {
+                    set menu.last = M.item
+                    if it.kind == 2 {
+                        await act(it.act, 1, SFX.stnmov)       ;; as the right arrow
+                    } else {
+                        await act(it.act, M.item, SFX.pistol)
+                    }
+                }
+            }
+            k == K.activate => {
+                set menu.last = M.item
+                close()
+                sound(SFX.swtchx)
+            }
+            k == K.back => {
+                set menu.last = M.item
+                if menu.prev {
+                    setup(menu.prev)
+                    sound(SFX.swtchn)
+                }
+            }
+            (ch != 0) || `:boolean m_key == KEY_PAUSE || m_key == KEY_CAPSLOCK || m_key == KEY_SCRLCK || m_key == KEY_NUMLOCK` => {
+                ;; the next item with the shortcut, from the skull on and
+                ;; around (Vanilla jumps to the holes with some keys: kept)
+                val found = loop j in (1, n) {
+                    val i = (M.item + j) % n
+                    until (menu.items@i).key == ch, i
+                }
+                if found == nil {
+                    `m_eat = false;`
+                } else {
+                    set M.item = found
+                    sound(SFX.pstop)
+                }
+            }
+            else => `m_eat = false;`
+        }
+        saving()
+        until !`:boolean menuactive`
+    }
+    `m_saving = 0;`
+}
+
+;; THE MENUS: closed, then open, until they close, again. The close
+;; button of the window, anywhere, asks to quit.
+task Menus () {
+    val me = task
+    `MENUS = $me; MENUS_ON = 1;`
+    keys()
+    versions()
+    set M.opl  = `:boolean M_CheckParm("-opldev") > 0`
+    set M.cur  = MAIN
+    set M.size = `:number screenblocks` - 3
+
+    stage <:m.key || :m.draw || :m.quit> {
+        par {
+            ;; the skull blinks, the first time after 10 tics, then every 8
+            await (10, :m.tic)
+            loop {
+                set M.skull = 1 - M.skull
+                await (8, :m.tic)
+            }
+        } with {
+            loop on :m.draw {
+                if M.opl {
+                    loop i, line in string.split(`:string m_opl_dev()`, "\n") {
+                        m_text(0, i * 8, line)
+                    }
+                }
+                if `:boolean menuactive` {
+                    val menu = M.cur
+                    menu.draw()
+                    loop i, it in menu.items {
+                        val name = it.name
+                        if (#name > 0) && `:boolean W_CheckNumForName(DEH_String(A_STR_OF($name)->s)) > 0` {
+                            patch_draw(menu.x, menu.y + (LINEHEIGHT * i), name)
+                        }
+                    }
+                    patch_draw(menu.x + SKULLXOFF, (menu.y - 5) + (M.item * LINEHEIGHT),
+                               if M.skull == 1 => "M_SKULL2" => "M_SKULL1")
+                }
+            }
+        } with {
+            loop {
+                watching :m.quit {
+                    loop {
+                        await Closed()
+                        await Open()
+                    }
+                }
+                sound(SFX.swtchn)
+                await act(QuitDOOM, 0, nil)
+                close()
+            }
+        }
+    }
+}
+
+spawn Menus()
