@@ -78,3 +78,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 62 | The messages and the chat in `hu.atm`; tests `hu` and `chat` | done 2026-11-26 |
 | 63 | The keys of the menus in `menu.atm`; test `menu` | done 2026-11-26 |
 | 64 | The keys of the automap in `am.atm`; test `automap`; D6 done | done 2026-11-26 |
+| 65 | The cost of D6, four emits per tic | note |

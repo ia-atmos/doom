@@ -39,6 +39,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 65 | The cost of D6: the messages, the menus, and the automap add about 7,000 instructions per tic (four directed emits); the program now costs 35 to 45% more than C with no rendering, 2.2 to 2.6% with it. One emit per tic for the three would take three away; not done, to keep the parts apart | By the session, in `doc/bench.md` |
 | 64 | The keys of the automap are in `am.atm` (2026-11-26): open and closed as a sequence, with a `watching` for the engine that closes it; the pans and the zooms stay variables. A new test `automap`; twenty-one identical, nineteen on the variant. With it, #11 and D6 are done | By the session, approved (#11) |
 | 63 | The keys of the menus are in `menu.atm` (2026-11-26), as the same dispatcher: the modes are set by the C functions of the items, so only the skull became a sequence; the questions as awaits would need most of `m_menu.c` in Atmos. A new test `menu`; twenty identical; the variant skips it (it saves) | By the session, approved (#11) |
 | 62 | The messages and the chat are in `hu.atm` (2026-11-26): the time of a message is a task that starts again, the chat a sequence; two new tests (`hu`, `chat`), nineteen identical. Not verified: the lines of other players | By the session, approved (#11) |

@@ -125,3 +125,23 @@ Of the 4.1 MiB that the program adds, 4 MiB is the stack of values that
 the runtime of Atmos allocates when it starts (`atm_init`), whatever the
 program; the program itself takes about 100 KiB, and the tasks of the
 doors and zombiemen of the variant about 80 KiB more.
+
+## After D6: the messages, the menus, and the automap
+
+On 2026-11-26, compiler `6c5c40b`, by `tst/count.sh`. Millions of
+instructions; the start of the engine taken out.
+
+| Demo | C | Main build, D8 | Main build now | |
+|------|---|----------------|----------------|---|
+| demo1, no rendering | 207.9 | 259.7 | 294.8 | +42% |
+| demo2, no rendering | 144.9 | 183.6 | 210.8 | +45% |
+| demo3, no rendering | 105.2 | 126.8 | 141.8 | +35% |
+| demo1, rendering | 4753.9 | 4823.1 | 4857.9 | +2.2% |
+| demo2, rendering | 3505.0 | 3560.9 | 3587.7 | +2.4% |
+| demo3, rendering | 2028.4 | 2066.7 | 2081.5 | +2.6% |
+
+The three parts add about 7,000 instructions per tic: four directed
+emits at each tic (`:hu.tic`, `:hu.check`, `:m.tic`, `:am.tic`), of
+about 1,750 each, for work that in C is a few tests of variables. One
+emit per tic to a task that holds the three would take three of them
+away; it was not done, to keep the parts apart as the face is.
