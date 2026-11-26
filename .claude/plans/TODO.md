@@ -19,6 +19,7 @@ Each has the option recommended by this session.
 
 | # | Decision | Recommended | State |
 |---|----------|-------------|-------|
+| 73 | The general instruction of the author for the ports (2026-11-26, relayed by `atmos` from `pico-1oom#29`): fidelity is the behavior observed while running, not the shape of the code nor the formats of files; idiomatic Atmos; own files in the forms of Atmos; no bugs of safety. Answer given in this session (how much is followed, what to redo, a grade of 5). To decide: the redo of #74 | Redo `menu.atm`, `hu.atm`, `am.atm` as Atmos (state in tables, questions as awaits, menus as data with lambdas); fix the reads out of bounds of the renderer in the copy and record them | asked |
 
 ## B. Work known and not done
 

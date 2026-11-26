@@ -86,3 +86,5 @@ no decision needed), **done**, **closed** (settled with no change),
 | 70 | Excerpt, bad: the key down in a menu (`menu.atm:505`), structs of C | shown |
 | 71 | Excerpt, idiomatic: the closed map (`am.atm:204`) | shown |
 | 72 | Excerpt, bad: a guard repeated in the tic of the map (`am.atm:214`), fixed | shown, fixed |
+| 73 | The general instruction for the ports: answer and grade | asked |
+| 74 | The redo after #73 | to decide |
