@@ -17,7 +17,8 @@ So far the program in Atmos ([`doom.atm`](doom.atm)) has the loop of
 frames, the screen wipe, the intermission, the finale, the flow of the
 game (the title, the demos, the levels), the face of the status bar, the messages and the chat, the menus, and the keys of the automap. The comparison with C is
 in [`doc/study.md`](doc/study.md). The changes to the engine are in
-[`doc/seam.md`](doc/seam.md).
+[`doc/seam.md`](doc/seam.md); the bugs of the original that the copy fixes,
+in [`doc/bugs.md`](doc/bugs.md).
 
 ## How it was written
 

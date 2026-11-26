@@ -12,7 +12,7 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-Four files are changed, and five files left the build.
+Four files are changed for the seam, three more for bugs of the original (`doc/bugs.md`), and five files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
@@ -23,6 +23,7 @@ Four files are changed, and five files left the build.
 | `src/doom/g_game.c`, `G_Ticker` | The loop that does the actions of `gameaction` (36 lines) becomes one call, `G_DoActions ();`, with its prototype | What comes after what is control: the task `Game` of `flow.atm` |
 | `src/doom/st_stuff.c`, the face | `ST_calcPainOffset` and `ST_updateFaceWidget` are removed (they are in `c/main.c` as they were), with a prototype of the second; `plyr`, `st_oldhealth`, `oldweaponsowned`, `st_facecount`, `st_faceindex`, and `st_randomnumber` lose their `static` | The face is in `st.atm`, and reads and writes these variables, which the rest of the status bar keeps |
 | `src/doom/am_map.c`, the keys | `AM_Responder` and `AM_Ticker` are removed (they are in `c/main.c` as they were); `cheating`, `grid`, `amclock`, `m_paninc`, `mtof_zoommul`, `ftom_zoommul`, `f_oldloc`, `scale_ftom`, `markpointnum`, and `followplayer` lose their `static` (`plr` keeps it: it has the name of the `plr` of `hu_stuff.c`, and is the same player) | The keys of the automap are in `am.atm` |
+| `src/doom/r_things.c`, `r_draw.c`, `r_draw.h`, `r_segs.c` | Two reads out of bounds of the renderer are fixed (`doc/bugs.md`) | Not the seam: the general instruction of the author asks the bugs of safety of the original to be fixed, in this copy, for the checks |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 | `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |

@@ -32,6 +32,7 @@ extern fixed_t		dc_texturemid;
 
 // first pixel in a column
 extern byte*		dc_source;		
+extern int		dc_texheight;		// FIX of the port (doc/bugs.md, bug 2)
 
 
 // The span blitting interface.

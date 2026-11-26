@@ -369,6 +369,21 @@ void R_DrawMaskedColumn (column_t* column)
 	    dc_texturemid = basetexturemid - (column->topdelta<<FRACBITS);
 	    // dc_source = (byte *)column + 3 - column->topdelta;
 
+	    // FIX of the port (doc/bugs.md, bug 1): the rows of the post
+	    // whose texel falls outside of it, by the rounding of the scale,
+	    // are not drawn; the original read past the post, and past the
+	    // lump at the last one.
+	    while (dc_yl <= dc_yh
+	        && ((dc_texturemid + (dc_yl-centery)*dc_iscale) >> FRACBITS) < 0)
+	        dc_yl++;
+	    while (dc_yl <= dc_yh
+	        && ((dc_texturemid + (dc_yh-centery)*dc_iscale) >> FRACBITS) >= column->length)
+	        dc_yh--;
+	}
+
+	if (dc_yl <= dc_yh)
+	{
+
 	    // Drawn by either R_DrawColumn
 	    //  or (SHADOW) R_DrawFuzzColumn.
 	    colfunc ();	

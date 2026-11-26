@@ -89,6 +89,25 @@ fixed_t			dc_texturemid;
 // first pixel in a column (possibly virtual) 
 byte*			dc_source;		
 
+// FIX of the port (doc/bugs.md, bug 2): the height of the texture of a
+// wall, whose columns the index wraps around; 0 for the others (sprites,
+// the sky), and the textures of 128 or more, as in the original. The
+// original wrapped every texture at 128, and read past the column of a
+// shorter one.
+int			dc_texheight;
+
+static inline int R_TexelIndex (fixed_t frac)
+{
+    int i = frac >> FRACBITS;
+
+    if (dc_texheight == 0 || dc_texheight >= 128)
+        return i & 127;
+    if ((dc_texheight & (dc_texheight - 1)) == 0)
+        return i & (dc_texheight - 1);
+    i %= dc_texheight;
+    return (i < 0) ? i + dc_texheight : i;
+}
+
 // just for profiling 
 int			dccount;
 
@@ -136,7 +155,7 @@ void R_DrawColumn (void)
     {
 	// Re-map color indices from wall texture column
 	//  using a lighting/special effects LUT.
-	*dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
+	*dest = dc_colormap[dc_source[R_TexelIndex(frac)]];
 	
 	dest += SCREENWIDTH; 
 	frac += fracstep;
@@ -242,7 +261,7 @@ void R_DrawColumnLow (void)
     do 
     {
 	// Hack. Does not work corretly.
-	*dest2 = *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
+	*dest2 = *dest = dc_colormap[dc_source[R_TexelIndex(frac)]];
 	dest += SCREENWIDTH;
 	dest2 += SCREENWIDTH;
 	frac += fracstep; 

@@ -1,16 +1,15 @@
 // The test platform: memory. It takes the place of engine/src/z_zone.c.
 //
-// The engine reads beyond the end of some blocks: a column of a sprite
-// or of a texture is read up to 128 bytes past its data, as in the
-// original, and the garbage found there reaches the screen as a pixel.
-// In the zone of the engine, that garbage is the header of the next
-// block, which has pointers: it changes at each run, and with it the
-// checksum of the screen.
+// The blocks are cleared, one by one, and purgable blocks (PU_CACHE)
+// are never purged, so that a run is the same on any machine and in any
+// build.
 //
-// Here each block is alone, cleared, and has cleared bytes before and
-// after it. So what is read beyond a block is always zero, and a run is
-// the same on any machine and in any build. Purgable blocks (PU_CACHE)
-// are never purged.
+// The original engine read past the end of some blocks (a column of a
+// sprite, of a short texture), and that garbage reached the screen; the
+// copy in engine/ has those reads fixed (doc/bugs.md). A build with
+// AddressSanitizer checks that none is left (doc/bugs.md has the
+// command); for it, TST_TAIL=0 leaves no bytes after a block, which is
+// now the default.
 
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +19,11 @@
 #include "z_zone.h"
 
 #define TST_PAD 256
+
+// The cleared bytes after a block: none.
+#ifndef TST_TAIL
+#define TST_TAIL 0
+#endif
 #define TST_ID  0x1d4a11
 
 typedef struct tst_block_s
@@ -63,7 +67,7 @@ void *Z_Malloc (int size, int tag, void *user)
         I_Error("Z_Malloc: an owner is required for purgable blocks");
     }
 
-    block = calloc(1, sizeof(tst_block_t) + size + TST_PAD);
+    block = calloc(1, sizeof(tst_block_t) + size + TST_TAIL);
 
     if (block == NULL)
     {

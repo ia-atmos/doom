@@ -91,3 +91,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 75 | The menus redone as Atmos (#74) | done 2026-11-26 |
 | 76 | The messages redone as Atmos (#74) | done 2026-11-26 |
 | 77 | The keys of the automap as tables (#74) | done 2026-11-26 |
+| 78 | Two reads out of bounds of the renderer fixed (`doc/bugs.md`) | done 2026-11-26 |

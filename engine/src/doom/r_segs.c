@@ -280,6 +280,7 @@ void R_RenderSegLoop (void)
 	    dc_yl = yl;
 	    dc_yh = yh;
 	    dc_texturemid = rw_midtexturemid;
+	    dc_texheight = textureheight[midtexture]>>FRACBITS;   // FIX of the port (bug 2)
 	    dc_source = R_GetColumn(midtexture,texturecolumn);
 	    colfunc ();
 	    ceilingclip[rw_x] = viewheight;
@@ -302,6 +303,7 @@ void R_RenderSegLoop (void)
 		    dc_yl = yl;
 		    dc_yh = mid;
 		    dc_texturemid = rw_toptexturemid;
+		    dc_texheight = textureheight[toptexture]>>FRACBITS;   // FIX of the port (bug 2)
 		    dc_source = R_GetColumn(toptexture,texturecolumn);
 		    colfunc ();
 		    ceilingclip[rw_x] = mid;
@@ -331,6 +333,7 @@ void R_RenderSegLoop (void)
 		    dc_yl = mid;
 		    dc_yh = yh;
 		    dc_texturemid = rw_bottomtexturemid;
+		    dc_texheight = textureheight[bottomtexture]>>FRACBITS;   // FIX of the port (bug 2)
 		    dc_source = R_GetColumn(bottomtexture,
 					    texturecolumn);
 		    colfunc ();
@@ -358,6 +361,8 @@ void R_RenderSegLoop (void)
 	topfrac += topstep;
 	bottomfrac += bottomstep;
     }
+
+    dc_texheight = 0;   // FIX of the port (bug 2): the others wrap at 128
 }
 
 
