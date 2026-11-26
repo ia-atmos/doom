@@ -153,3 +153,7 @@ section C are read, and the work goes on later (D8, and #33 with him).
 On 2026-11-26, the author acknowledged the reports ("ack"): #59 (D8),
 #60, #61 (#33), #62, #63, #64 (D6 done), #65. The plan, D0 to D8, is
 done; nothing is waiting for an answer.
+
+On 2026-11-26, the author acknowledged the redo (#74 to #79) and the
+check on the compiler `d76b547` ("Ack"); the excerpts #80 to #85 (and
+#67 to #72) are to be reviewed with him one by one, later.
