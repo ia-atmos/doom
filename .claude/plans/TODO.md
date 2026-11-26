@@ -11,7 +11,7 @@ the state of each, is `ISSUES.md`. Numbers that are missing here were
 settled. A rule of the author of 2026-11-18: everything put to him has a
 number, and nothing else is enumerated with bare numbers.
 
-Last update: 2026-11-25.
+Last update: 2026-11-26.
 
 ## A. Decisions waiting for an answer
 
@@ -33,6 +33,7 @@ Each has the option recommended by this session.
 | 42 | Not verified in the finale, ported by reading and never run: the episodes 2, 3 (the scroll and "the end"), and 4; Doom 2 (the text skipped by a button, the cast). And the finale reached by playing to the end of E1M8, in the place of the timer of a deathmatch | Needs the registered or the Doom 2 WAD; the played way needs an autopilot that kills the two barons |
 | 44 | Not verified in the flow: the cycle of the Ultimate Doom (`demo4`) and of Doom 2, the secret exit itself (a switch in E1M3), the finale between the levels of Doom 2. Verified on 2026-11-20: `idclev`, a screenshot (`cheat`), the way back from the secret level (`secret`) | The first and the fourth need other WADs |
 | 45 | `G_DoCompleted` stays in `g_game.c` (it decides the next level and the victory): it reads static tables of par times. Moving it means copying the tables, or editing the engine more | To decide if the study needs the decisions in Atmos |
+| 60 | At each big step (a milestone, a change of what is on screen), show the author a few screenshots in the report, in this session. The tests already write them (`tst/*.png`, compared at each run) | A rule of the author for the graphic projects, relayed by `atmos` on 2026-11-26. Done for D8 on 2026-11-26 |
 | 50 | Where to send: coordination, status, and questions for the author, to the session `atmos` (`session_011eECohhJbc4GMpAj3yyeEo`, since 2026-11-24); measurements on the ports and changes of the compiler, to `atmos-lang` (`session_011eECogKVQ7ZzmWCoMST2wK`); `pin`, to `atmos-pin` (`session_011eECogSDhkVfyt7qme5DLh`). The pause ended on 2026-11-25 | Relayed by `atmos` on 2026-11-24 (atmos-lang#119) |
 
 ## C. Reported or decided, and not acknowledged

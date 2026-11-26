@@ -73,3 +73,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 57 | The jumps of a zombieman's own action are taken after it returns | closed: by the session, in the study |
 | 58 | Not reached in the variant: the resurrection, the damage of a standing zombieman, Nightmare | note |
 | 59 | D8 done: the answer, the parts in numbers, the border; the three builds and the memory | done 2026-11-25 |
+| 60 | Screenshots in the report at each big step | rule of the author |
