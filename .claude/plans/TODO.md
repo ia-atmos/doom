@@ -40,6 +40,7 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 76 | #74, the messages: all of `hu_stuff.c` is in `hu.atm` (out of the build of the program, not edited): the state in a table `H`, the chat as a task, the names of the maps as tables, the menu asks for a message that stays by `H.stay`; the seam of #62 is undone. Twenty-one tests identical | By the session, approved (#74) |
 | 75 | #74, the menus: all of `m_menu.c` is in `menu.atm` (out of the build of the program, not edited): the menus as tables with lambdas, the questions as `await Ask`, the modals as `solo`; the seam of #63 is undone. Twenty-one tests identical | By the session, approved (#74) |
 | 67 | Excerpt, idiomatic: the time of a message, `hu.atm:281`, now a `watching :hu.show` that starts the count again | Shown on 2026-11-26 |
 | 68 | Excerpt, bad: a key of the chat, `hu.atm:347`. Why: the key crosses to and from C at each step (`a_dbl`, casts), and the answer to the engine is a variable of C (`hu_eat`), since an emit returns no value to the C that called it. Better: an emit that returns a value to its caller (the language), or a responder that the engine does not need answered at once (the engine, not to be changed) | Shown on 2026-11-26 |

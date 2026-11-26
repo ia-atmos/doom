@@ -89,3 +89,4 @@ no decision needed), **done**, **closed** (settled with no change),
 | 73 | The general instruction for the ports: answer and grade | asked |
 | 74 | The redo after #73 | approved 2026-11-26; in work |
 | 75 | The menus redone as Atmos (#74) | done 2026-11-26 |
+| 76 | The messages redone as Atmos (#74) | done 2026-11-26 |

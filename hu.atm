@@ -1,13 +1,13 @@
-;; THE MESSAGES OF THE HEADS-UP DISPLAY
+;; THE HEADS-UP DISPLAY: THE MESSAGES AND THE CHAT
 ;;
 ;; The line of messages at the top of the screen (what the player picks
-;; up, the cheats, the menu), how long each stays, and the chat of a net
-;; game: the line that the player types, and the lines that come from
-;; the others.
+;; up, the cheats, the menu), how long each stays, the name of the map
+;; (drawn with the automap), and the chat of a net game: the line that
+;; the player types, and the lines that come from the others.
 ;;
-;; In the engine, it was HU_Start, HU_Ticker, and HU_Responder, of
-;; engine/src/doom/hu_stuff.c. The rest stays there: the font, the
-;; widgets (hu_lib.c), and their drawing.
+;; In the engine, it was all of engine/src/doom/hu_stuff.c, which is out
+;; of the build of this program (the engine all in C still has it). The
+;; widgets that draw the lines stay in engine/src/doom/hu_lib.c.
 ;;
 ;; The engine emits, to the task Hud only:
 ;;
@@ -32,106 +32,102 @@
 #include "m_controls.h"
 #include "m_misc.h"
 #include "s_sound.h"
+#include "w_wad.h"
+#include "z_zone.h"
 
-#define HU_TITLE	(mapnames[(gameepisode-1)*9+gamemap-1])
-#define HU_TITLE2	(mapnames_commercial[gamemap-1])
-#define HU_TITLEP	(mapnames_commercial[gamemap-1 + 32])
-#define HU_TITLET	(mapnames_commercial[gamemap-1 + 64])
-#define HU_TITLE_CHEX   (mapnames_chex[(gameepisode-1)*9+gamemap-1])
+// What the engine reads or binds of the display.
+char *chat_macros[10];
+const char *player_names[] = {
+    HUSTR_PLRGREEN, HUSTR_PLRINDIGO, HUSTR_PLRBROWN, HUSTR_PLRRED
+};
+patch_t* hu_font[HU_FONTSIZE];
+boolean chat_on;
+
+// The widgets (hu_lib.c), and the flags with which they are drawn.
+static hu_textline_t w_title;
+static hu_stext_t    w_message;
+static hu_itext_t    w_chat;
+static hu_itext_t    w_inputbuffer[MAXPLAYERS];
+static boolean       message_on;
+static boolean       always_off = false;
+static char          chat_dest[MAXPLAYERS];
+
 #define HU_TITLEX	0
 #define HU_TITLEY	(167 - SHORT(hu_font[0]->height))
 #define HU_INPUTX	HU_MSGX
 #define HU_INPUTY	(HU_MSGY + HU_MSGHEIGHT*(SHORT(hu_font[0]->height) +1))
 
-// Variables of engine/src/doom/hu_stuff.c.
-extern char *chat_macros[10];
-extern const char *player_names[];
-extern const char *mapnames[];
-extern const char *mapnames_chex[];
-extern const char *mapnames_commercial[];
-extern player_t*	plr;
-extern hu_textline_t	w_title;
-extern boolean		chat_on;
-extern hu_itext_t	w_chat;
-extern boolean		always_off;
-extern char		chat_dest[MAXPLAYERS];
-extern hu_itext_t	w_inputbuffer[MAXPLAYERS];
-extern boolean		message_on;
-extern boolean		message_dontfuckwithme;
-extern hu_stext_t	w_message;
-extern boolean		headsupactive;
-void HU_queueChatChar(char c);
-void HU_Stop(void);
+// The names of the maps: Doom (four episodes and a fifth of new levels),
+// Chex Quest, and the commercial games in one sequence (Doom 2, then
+// Plutonia, then TNT), as Vanilla has them, where a map past the end of
+// one reads the next.
+#define E9(e) HUSTR_E##e##M1, HUSTR_E##e##M2, HUSTR_E##e##M3, HUSTR_E##e##M4, \
+              HUSTR_E##e##M5, HUSTR_E##e##M6, HUSTR_E##e##M7, HUSTR_E##e##M8, HUSTR_E##e##M9
+#define N9      "NEWLEVEL", "NEWLEVEL", "NEWLEVEL", "NEWLEVEL", "NEWLEVEL", \
+                "NEWLEVEL", "NEWLEVEL", "NEWLEVEL", "NEWLEVEL"
+#define C32(p)  p##1, p##2, p##3, p##4, p##5, p##6, p##7, p##8, p##9, p##10, \
+                p##11, p##12, p##13, p##14, p##15, p##16, p##17, p##18, p##19, p##20, \
+                p##21, p##22, p##23, p##24, p##25, p##26, p##27, p##28, p##29, p##30, \
+                p##31, p##32
+#define X9      HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, \
+                HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5
+static const char *hu_maps_doom[] = { E9(1), E9(2), E9(3), E9(4), N9 };
+static const char *hu_maps_chex[] = {
+    HUSTR_E1M1, HUSTR_E1M2, HUSTR_E1M3, HUSTR_E1M4,
+    HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5, HUSTR_E1M5,
+    X9, X9, X9, N9
+};
+static const char *hu_maps_commercial[] = { C32(HUSTR_), C32(PHUSTR_), C32(THUSTR_) };
 
 // The task Hud, which alone awaits the events of this part.
 static AVal HU;
 static int HU_ON = 0;
 
+static player_t* plr;
 static event_t* hu_ev;          // the key of :hu.key
 static boolean hu_eat;          // the key was taken
 static boolean hu_altdown = false;
-static char hu_lastmessage[HU_MAXLINELENGTH+1];
 
-// Called by the engine when a level starts: the widgets, as they were,
-// and then the task starts again.
+// The font, once.
+void HU_Init (void) {
+    char buffer[9];
+    for (int i=0, j=HU_FONTSTART; i<HU_FONTSIZE; i++, j++) {
+        DEH_snprintf(buffer, 9, "STCFN%.3d", j);
+        hu_font[i] = (patch_t *) W_CacheLumpName(buffer, PU_STATIC);
+    }
+}
+
+// Called by the engine when a level starts: the widgets are made again,
+// and the task Hud starts again.
 void HU_Start (void) {
-    int i;
-    const char *s;
-
     doom_start();
-
-    if (headsupactive)
-	HU_Stop();
-
     plr = &players[consoleplayer];
     message_on = false;
-    message_dontfuckwithme = false;
     chat_on = false;
-
     HUlib_initSText(&w_message, HU_MSGX, HU_MSGY, HU_MSGHEIGHT,
-		    hu_font, HU_FONTSTART, &message_on);
+                    hu_font, HU_FONTSTART, &message_on);
     HUlib_initTextLine(&w_title, HU_TITLEX, HU_TITLEY, hu_font, HU_FONTSTART);
-
-    switch ( logical_gamemission )
-    {
-      case doom:
-	s = HU_TITLE;
-	break;
-      case doom2:
-	 s = HU_TITLE2;
-         // Pre-Final Doom compatibility: map33-map35 names don't spill over
-         if (gameversion <= exe_doom_1_9 && gamemap >= 33)
-         {
-             s = "";
-         }
-	 break;
-      case pack_plut:
-	s = HU_TITLEP;
-	break;
-      case pack_tnt:
-	s = HU_TITLET;
-	break;
-      default:
-         s = "Unknown level";
-         break;
-    }
-    if (logical_gamemission == doom && gameversion == exe_chex)
-    {
-        s = HU_TITLE_CHEX;
-    }
-    s = DEH_String(s);
-    while (*s)
-	HUlib_addCharToTextLine(&w_title, *(s++));
-
     HUlib_initIText(&w_chat, HU_INPUTX, HU_INPUTY, hu_font, HU_FONTSTART, &chat_on);
-    for (i=0 ; i<MAXPLAYERS ; i++)
-	HUlib_initIText(&w_inputbuffer[i], 0, 0, 0, 0, &always_off);
-
-    headsupactive = true;
-
+    for (int i=0 ; i<MAXPLAYERS ; i++) {
+        HUlib_initIText(&w_inputbuffer[i], 0, 0, 0, 0, &always_off);
+    }
     if (HU_ON) {
         doom_emit_to(HU, "hu.start");
     }
+}
+
+void HU_Drawer (void) {
+    HUlib_drawSText(&w_message);
+    HUlib_drawIText(&w_chat);
+    if (automapactive) {
+        HUlib_drawTextLine(&w_title, false);
+    }
+}
+
+void HU_Erase (void) {
+    HUlib_eraseSText(&w_message);
+    HUlib_eraseIText(&w_chat);
+    HUlib_eraseTextLine(&w_title);
 }
 
 // Called by the engine once per tic of a level.
@@ -164,14 +160,36 @@ boolean HU_Responder (event_t *ev) {
     return hu_eat;
 }
 
+// The characters that the player types go to the others, one per tic,
+// in the commands of the player (G_BuildTiccmd takes them).
+#define QUEUESIZE 128
+static char chatchars[QUEUESIZE];
+static int head = 0;
+static int tail = 0;
+
+void HU_queueChatChar (char c) {
+    if (((head + 1) & (QUEUESIZE-1)) == tail) {
+        plr->message = DEH_String(HUSTR_MSGU);
+    } else {
+        chatchars[head] = c;
+        head = (head + 1) & (QUEUESIZE-1);
+    }
+}
+
+char HU_dequeueChatChar (void) {
+    char c = 0;
+    if (head != tail) {
+        c = chatchars[tail];
+        tail = (tail + 1) & (QUEUESIZE-1);
+    }
+    return c;
+}
+
 // The lines that the other players typed, a character per tic in their
 // commands: true if one ended, to this player, and went to the screen.
 static int hu_incoming (void) {
     int i, rc, ret = 0;
     char c;
-    if (!netgame) {
-        return 0;
-    }
     for (i=0 ; i<MAXPLAYERS; i++) {
         if (!playeringame[i])
             continue;
@@ -202,57 +220,95 @@ static int hu_incoming (void) {
     return ret;
 }
 
-// The line of the chat went out: the player sees it.
-static void hu_sent (void) {
-    if (w_chat.l.len) {
-        M_StringCopy(hu_lastmessage, w_chat.l.l, sizeof(hu_lastmessage));
-        plr->message = hu_lastmessage;
-    }
-}
-
-// A macro of the chat (alt and a digit): the line goes out at once.
-static void hu_macro (int c) {
-    const char *macromessage = chat_macros[c];
-    HU_queueChatChar(KEY_ENTER);        // kill last message with a '\n'
-    while (*macromessage)
-        HU_queueChatChar(*macromessage++);
-    HU_queueChatChar(KEY_ENTER);
-    M_StringCopy(hu_lastmessage, chat_macros[c], sizeof(hu_lastmessage));
-    plr->message = hu_lastmessage;
+// A message of the player, which the screen shows later: it must last,
+// so it is kept here.
+static void hu_say (const char* text) {
+    static char last[HU_MAXLINELENGTH+1];
+    M_StringCopy(last, text, sizeof(last));
+    plr->message = last;
 }
 ```
 
-;; The talks of the player to itself, in a game of more than two: the
-;; count lasts as long as the program.
-var hu_nobrainers = 0
+val HU_MSGTIMEOUT = `:number HU_MSGTIMEOUT`
+
+;; THE STATE OF THE DISPLAY
+;;
+;; `fixed`: the message on screen must not be replaced (it came from the
+;; menu, or from the chat); `stay`: the next message must stay so (the
+;; menu asks it, see menu.atm); `nobrainers`: the talks of the player to
+;; itself, in a game of more than two, as long as the program lasts.
+pin H = [
+    fixed      = false,
+    stay       = false,
+    nobrainers = 0,
+    maps       = nil,
+]
+
+;; The names of the maps, as tables, once the version of the game is
+;; known.
+func hu_maps () {
+    val from = \(n, f) {
+        val t = []
+        loop i in n {
+            set t@+ = f(i)
+        }
+        t
+    }
+    [
+        doom       = from(45, \{ `:string hu_maps_doom[(int) a_dbl($it)]` }),
+        chex       = from(45, \{ `:string hu_maps_chex[(int) a_dbl($it)]` }),
+        commercial = from(96, \{ `:string hu_maps_commercial[(int) a_dbl($it)]` }),
+    ]
+}
+
+;; The name of the map of this level, which the automap shows.
+func hu_title () {
+    val m = H.maps
+    val epi = `:number gameepisode`
+    val map = `:number gamemap`
+    val doom = m.doom@(((epi - 1) * 9) + map - 1)
+    val name = ifs {
+        `:boolean logical_gamemission == doom && gameversion == exe_chex` =>
+            m.chex@(((epi - 1) * 9) + map - 1)
+        `:boolean logical_gamemission == doom` => doom
+        `:boolean logical_gamemission == doom2` => {
+            ;; before Final Doom, the maps 33 to 35 have no name
+            if `:boolean gameversion <= exe_doom_1_9` && (map >= 33) => "" => m.commercial@(map - 1)
+        }
+        `:boolean logical_gamemission == pack_plut` => m.commercial@(map - 1 + 32)
+        `:boolean logical_gamemission == pack_tnt`  => m.commercial@(map - 1 + 64)
+        else => "Unknown level"
+    }
+    `:string DEH_String(A_STR_OF($name)->s)`
+}
 
 func hu_talk_to_self () {
-    set hu_nobrainers += 1
-    val n = hu_nobrainers
-    ifs {
-        n < 3  => `plr->message = DEH_String(HUSTR_TALKTOSELF1);`
-        n < 6  => `plr->message = DEH_String(HUSTR_TALKTOSELF2);`
-        n < 9  => `plr->message = DEH_String(HUSTR_TALKTOSELF3);`
-        n < 32 => `plr->message = DEH_String(HUSTR_TALKTOSELF4);`
-        else   => `plr->message = DEH_String(HUSTR_TALKTOSELF5);`
+    set H.nobrainers += 1
+    val n = H.nobrainers
+    val text = ifs {
+        n < 3  => `:string HUSTR_TALKTOSELF1`
+        n < 6  => `:string HUSTR_TALKTOSELF2`
+        n < 9  => `:string HUSTR_TALKTOSELF3`
+        n < 32 => `:string HUSTR_TALKTOSELF4`
+        else   => `:string HUSTR_TALKTOSELF5`
     }
+    `plr->message = DEH_String(A_STR_OF($text)->s);`
 }
 
 ;; Who a key starts a chat with (HU_BROADCAST for all, or a player
 ;; plus one), or nil.
-func hu_chat_with () {
+func hu_chat_with (key) {
+    val players = `:number playeringame[0] + playeringame[1] + playeringame[2] + playeringame[3]`
+    val me = `:number consoleplayer`
     ifs {
         !`:boolean netgame` => nil
-        `:boolean hu_ev->data2 == key_multi_msg` => `:number HU_BROADCAST`
-        `:boolean (playeringame[0] + playeringame[1] + playeringame[2] + playeringame[3]) > 2` => {
+        key == `:number key_multi_msg` => `:number HU_BROADCAST`
+        players > 2 => {
             loop i in `:number MAXPLAYERS` {
-                if `:boolean hu_ev->data2 == key_multi_msgplayer[(int) a_dbl($i)]` {
-                    if `:boolean playeringame[(int) a_dbl($i)]` && (i != `:number consoleplayer`) {
-                        break (i + 1)
-                    } else {
-                        if i == `:number consoleplayer` {
-                            hu_talk_to_self()
-                        }
+                if key == `:number key_multi_msgplayer[(int) a_dbl($i)]` {
+                    ifs {
+                        (i != me) && `:boolean playeringame[(int) a_dbl($i)]` => break (i + 1)
+                        i == me => hu_talk_to_self()
                     }
                 }
             }
@@ -261,20 +317,64 @@ func hu_chat_with () {
     }
 }
 
-val HU_MSGTIMEOUT = `:number HU_MSGTIMEOUT`
+;; The line of the chat, typed until enter (it goes, and the player sees
+;; it), escape, or a macro (alt and a digit: the macro goes at once). The
+;; original queues HU_BROADCAST whoever the line is to.
+task Chat () {
+    `hu_eat = true;`
+    `chat_on = true;`
+    `HUlib_resetIText(&w_chat);`
+    `HU_queueChatChar(HU_BROADCAST);`
+    `I_StartTextInput(0, 8, SCREENWIDTH, 16);`
+    loop on :hu.key {
+        ifs {
+            `:boolean hu_altdown` => {
+                val c = `:number hu_ev->data1` - 48           ;; '0'
+                if (c >= 0) && (c <= 9) {
+                    val macro = `:string chat_macros[(int) a_dbl($c)]`
+                    `HU_queueChatChar(KEY_ENTER);`          ;; kill last message
+                    loop i in #macro {
+                        val b = string.byte(macro, i)
+                        `HU_queueChatChar(a_dbl($b));`
+                    }
+                    `HU_queueChatChar(KEY_ENTER);`
+                    `hu_say(A_STR_OF($macro)->s);`
+                    `hu_eat = true;`
+                    break
+                }
+            }
+            else => {
+                val c = `:number (unsigned char) hu_ev->data3`
+                `hu_eat = HUlib_keyInIText(&w_chat, a_dbl($c));`
+                `if (hu_eat) HU_queueChatChar(a_dbl($c));`
+                if c == `:number KEY_ENTER` {
+                    `if (w_chat.l.len) hu_say(w_chat.l.l);`
+                    break
+                }
+                until c == `:number KEY_ESCAPE`
+            }
+        }
+    }
+    `chat_on = false;`
+    `I_StopTextInput();`
+}
 
 task Hud () {
     val me = task
     `HU = $me; HU_ON = 1;`
+    set H.maps = hu_maps()
 
     await :hu.start
     loop {
-        watching :hu.start {
-            ;; A message that came while another that must not be
-            ;; replaced is on screen (from the menu, or from the chat)
-            ;; waits for it to go.
-            var fixed = false
+        set H.fixed = false
+        set H.stay  = false
+        val title = hu_title()
+        loop i in #title {
+            val c = string.byte(title, i)
+            `HUlib_addCharToTextLine(&w_title, a_dbl($c));`
+        }
 
+        watching :hu.start {
             par {
                 ;; The time of a message on screen: shown, or shown
                 ;; again, it stays for 4 seconds.
@@ -283,25 +383,27 @@ task Hud () {
                     watching :hu.show {
                         await (HU_MSGTIMEOUT, :hu.tic)
                         `message_on = false;`
-                        set fixed = false
+                        set H.fixed = false
                         await(false)
                     }
                 }
             } with {
-                ;; The new messages: of the player, then of the chat.
+                ;; The new messages: of the player, then of the chat. A
+                ;; message that came while a fixed one is on screen waits
+                ;; for it to go, unless it must stay too.
                 loop on :hu.check {
-                    if `:boolean showMessages || message_dontfuckwithme` {
-                        if `:boolean plr->message` && ((!fixed) || `:boolean message_dontfuckwithme`) {
+                    if `:boolean showMessages` || H.stay {
+                        if `:boolean plr->message` && ((!H.fixed) || H.stay) {
                             `HUlib_addMessageToSText(&w_message, 0, plr->message);`
                             `plr->message = 0;`
                             `message_on = true;`
-                            set fixed = `:boolean message_dontfuckwithme`
-                            `message_dontfuckwithme = 0;`
+                            set H.fixed = H.stay
+                            set H.stay  = false
                             emit @me (:hu.show)
                         }
                     }
-                    if `:boolean hu_incoming()` {
-                        set fixed = true
+                    if `:boolean netgame && hu_incoming()` {
+                        set H.fixed = true
                         `message_on = true;`
                         emit @me (:hu.show)
                     }
@@ -309,47 +411,16 @@ task Hud () {
             } with {
                 ;; The keys: the message again, and the chat.
                 loop {
-                    val dest = loop on :hu.key {
+                    loop on :hu.key {
                         if `:boolean hu_ev->data1 == key_message_refresh` {
                             `message_on = true;`
                             `hu_eat = true;`
                             emit @me (:hu.show)
                         } else {
-                            val who = hu_chat_with()
-                            until who, who
+                            until hu_chat_with(`:number hu_ev->data2`) != nil
                         }
                     }
-
-                    ;; The chat: a line typed to `dest`, which the
-                    ;; original never tells to the others (it always
-                    ;; queues HU_BROADCAST).
-                    `hu_eat = true;`
-                    `chat_on = true;`
-                    `HUlib_resetIText(&w_chat);`
-                    `HU_queueChatChar(HU_BROADCAST);`
-                    `I_StartTextInput(0, 8, SCREENWIDTH, 16);`
-
-                    loop on :hu.key {
-                        if `:boolean hu_altdown` {
-                            val c = `:number (unsigned char) (hu_ev->data1 - '0')`
-                            if c <= 9 {
-                                `hu_macro((int) a_dbl($c));`
-                                `hu_eat = true;`
-                                break
-                            }
-                        } else {
-                            val c = `:number (unsigned char) hu_ev->data3`
-                            `hu_eat = HUlib_keyInIText(&w_chat, (unsigned char) a_dbl($c));`
-                            `if (hu_eat) HU_queueChatChar((unsigned char) a_dbl($c));`
-                            if c == `:number KEY_ENTER` {
-                                `hu_sent();`
-                                break
-                            }
-                            until c == `:number KEY_ESCAPE`
-                        }
-                    }
-                    `chat_on = false;`
-                    `I_StopTextInput();`
+                    await Chat()
                 }
             }
         }

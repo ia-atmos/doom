@@ -46,7 +46,7 @@ and the C of its `:prelude` (data and copies of pixels, with no state).
 | Finale | 528, 2800 | 248, 1454 | 183, 1270 | `finalestage`, `finalecount` |
 | Flow of the game | 128, 489 | 122, 552 | 67, 308 | `demosequence`, `pagetic` |
 | Face of the status bar | 176, 752 | 80, 460 | 48, 255 | none (the same machine, local to a task) |
-| Messages and chat | 277, 1358 | 118, 737 | 171, 998 | `message_counter`; `message_nottobefuckedwith` becomes local to a level; `chat_on` is a position of the task, and stays a variable for the menu |
+| Messages and chat (all of `hu_stuff.c`) | 550, 2062 | 168, 1191 | 172, 1320 | `message_counter`, `message_nottobefuckedwith`, `message_dontfuckwithme` (a table `H`), the static `lastmessage`, `num_nobrainers`; the chat is a task |
 | Menus (all of `m_menu.c`) | 1533, 6918 | 751, 5393 | 232, 1241 | `messageToPrint`, `messageRoutine`, `messageLastMenuActive`, `saveStringEnter`, `saveCharIndex`, `saveOldString`, `skullAnimCounter`; the menus as data of Atmos; the questions as awaits |
 | Keys of the automap | 197, 890 | 107, 751 | 84, 443 | none (open and closed is a position of the task; the pans and the zooms stay variables, read by the tic) |
 | Door, in the variant | 111, 452 | 52, 316 | 115, 754 | `topcountdown` |
@@ -455,38 +455,34 @@ not measured.
 
 ## The messages and the chat
 
-Done on 2026-11-26, approved by the author with the menus and the
-automap (#11). In `hu.atm`.
+First done on 2026-11-26 from the three functions of `hu_stuff.c`
+(#62); redone the same day after the general instruction of the author
+(#73, #74): all of `hu_stuff.c` left the build of the program, and is in
+`hu.atm`. The widgets that draw the lines stay in `hu_lib.c`.
 
-| | C (`HU_Start`, `HU_Ticker`, `HU_Responder`) | Atmos (`hu.atm`) |
+| | C (`hu_stuff.c`) | Atmos (`hu.atm`) |
 |---|---|---|
-| Lines | 277 (with the constants and the variables of the file) | 118, and 171 of C in the `:prelude` |
-| State | `message_counter`, `message_nottobefuckedwith`, `chat_on`, and the statics `altdown`, `num_nobrainers`, `lastmessage` | the position of the task Hud; `fixed`, local to a level; `chat_on` and `message_on` stay variables of C |
+| Lines | 550 (most of them the names of the maps) | 168, and 172 of C in the `:prelude` (the font, the widgets, the queue of the characters that go to the others, the lines that come from them, the names of the maps as macros) |
+| State | `message_counter`, `message_nottobefuckedwith`, `message_dontfuckwithme`, `chat_on`, the statics `lastmessage`, `altdown`, `num_nobrainers` | one table `H` (`fixed`, `stay`, `nobrainers`, the names of the maps as tables); the position of the tasks; `message_on` and `chat_on` stay in C, since the widgets draw by them |
 
-- **The time of a message is a task that starts again.** In C, a
-  counter is set to four seconds by three places (a new message, the key
-  that shows it again, a line of chat) and counted down at each tic. In
-  Atmos, each of them emits `:hu.show`, and one trail waits four seconds
-  of tics, or starts again on another `:hu.show`. The counter is gone.
-- **The chat is a sequence.** Off, the keys show the message again or
-  start a line; on, they are typed until enter, escape, or a macro;
-  then off again. `chat_on` stays a variable of C, written by the task,
-  because the menu reads it (the keys of the size of the screen).
-- **A level starts it all again**: one `watching :hu.start`, in the
-  place of the resets of `HU_Start` (and of the counter that C forgot to
-  reset, whose late end changes nothing visible).
+- **The time of a message is a task that starts again**: a `watching
+  :hu.show` around four seconds of tics. The counter is gone.
+- **The chat is a task**, `Chat`, spawned by the key that starts it and
+  done at enter, escape, or a macro; the macro is a loop over a string
+  of Atmos.
+- **The menu asks for a message that stays** by `H.stay`, a field of the
+  table, where it was a variable of C written by `m_menu.c`
+  (`message_dontfuckwithme`).
+- **The names of the maps are tables of Atmos**, made once from the
+  strings of the engine; the choice of the name by the game is an
+  `ifs`.
+- **A level starts it all again**: one `watching :hu.start`.
 - **What reads worse.** `HU_Responder` must answer at once whether it
   took the key: the task writes a variable of C (`hu_eat`), that the
-  native function returns after the emit. The order inside a tic
-  (the end of a message, then the new ones) needed two events, `:hu.tic`
-  and `:hu.check`, where C had two statements in one function.
-- **What stayed in C, and why the `:prelude` is large**: the widgets
-  that `HU_Start` makes (the title of the map for the automap, the line
-  of chat), the lines that come from the other players (a buffer per
-  player, fed a character per tic; there is no order of time in it to
-  give to a task), and the macros. The part in Atmos is less than half
-  of the C it replaces, but with its `:prelude` the whole is about as
-  long: this part is mostly widgets, and its control is small.
+  native function returns after the emit. The order inside a tic (the
+  end of a message, then the new ones) needs two events, `:hu.tic` and
+  `:hu.check`. The queue of the characters that go to the others stays
+  a ring of bytes in C, since the engine takes one at each tic.
 
 ### What was verified, and what was not
 

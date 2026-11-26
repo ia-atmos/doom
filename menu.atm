@@ -62,7 +62,6 @@ int     screenblocks = 9;
 boolean inhelpscreens;
 boolean menuactive;
 
-extern boolean message_dontfuckwithme;      // hu_stuff.c
 
 // The task Menus, which alone awaits the events of this part.
 static AVal MENUS;
@@ -796,7 +795,7 @@ task QuitDOOM (choice) {
 func change_messages (choice) {
     `showMessages = 1 - showMessages;`
     `players[consoleplayer].message = DEH_String(showMessages ? MSGON : MSGOFF);`
-    `message_dontfuckwithme = true;`
+    set H.stay = true               ;; the message stays (hu.atm)
 }
 
 func change_detail (choice) {

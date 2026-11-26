@@ -12,7 +12,7 @@ git diff 8f5ee02 -- engine/
 
 ## Changes to the engine
 
-Five files are changed, and four files left the build.
+Four files are changed, and five files left the build.
 
 | File | Change | Why |
 |------|--------|-----|
@@ -22,12 +22,12 @@ Five files are changed, and four files left the build.
 | `src/doom/d_main.c`, the "demo loop" | Removed (138 lines): `demosequence`, `pagetic`, `pagename`, and `D_PageTicker`, `D_PageDrawer`, `D_AdvanceDemo`, `D_DoAdvanceDemo`, `D_StartTitle` | The cycle of the title is control: the task `Title` of `flow.atm` |
 | `src/doom/g_game.c`, `G_Ticker` | The loop that does the actions of `gameaction` (36 lines) becomes one call, `G_DoActions ();`, with its prototype | What comes after what is control: the task `Game` of `flow.atm` |
 | `src/doom/st_stuff.c`, the face | `ST_calcPainOffset` and `ST_updateFaceWidget` are removed (they are in `c/main.c` as they were), with a prototype of the second; `plyr`, `st_oldhealth`, `oldweaponsowned`, `st_facecount`, `st_faceindex`, and `st_randomnumber` lose their `static` | The face is in `st.atm`, and reads and writes these variables, which the rest of the status bar keeps |
-| `src/doom/hu_stuff.c`, the messages | `HU_Start`, `HU_Ticker`, `HU_Responder`, `StartChatInput`, and `StopChatInput` are removed (they are in `c/main.c` as they were); `plr`, `w_title`, `w_chat`, `always_off`, `chat_dest`, `w_inputbuffer`, `message_on`, `message_nottobefuckedwith`, `w_message`, `message_counter`, and `headsupactive` lose their `static` | The messages and the chat are in `hu.atm`, which keeps the widgets of the file. The last two are only for `c/main.c` |
 | `src/doom/am_map.c`, the keys | `AM_Responder` and `AM_Ticker` are removed (they are in `c/main.c` as they were); `cheating`, `grid`, `amclock`, `m_paninc`, `mtof_zoommul`, `ftom_zoommul`, `f_oldloc`, `scale_ftom`, `markpointnum`, and `followplayer` lose their `static` (`plr` keeps it: it has the name of the `plr` of `hu_stuff.c`, and is the same player) | The keys of the automap are in `am.atm` |
 | `src/doom/f_wipe.c` | Out of the build of the program, not edited | The screen wipe is in `wipe.atm`. The file is still in the build of the engine all in C |
 | `src/doom/wi_stuff.c` | Out of the build of the program, not edited | The intermission is in `wi.atm`. The same |
 | `src/doom/f_finale.c` | Out of the build of the program, not edited | The finale is in `fi.atm`. The same |
 | `src/doom/m_menu.c` | Out of the build of the program, not edited | The menus are in `menu.atm`. The same |
+| `src/doom/hu_stuff.c` | Out of the build of the program, not edited | The messages and the chat are in `hu.atm`. The same |
 
 Every function removed from the engine is in `c/main.c` as it was, for
 the engine all in C.
@@ -114,9 +114,10 @@ From the engine to the program:
 | `D_PageTicker()`, `D_PageDrawer()` | A tic, and a frame, of a page of the title. Emit `:page.tic` and `:page.draw` |
 | `D_AdvanceDemo()` | A demo ended (`G_CheckDemoStatus`). Sets `advancedemo`, as before; emits nothing |
 | `ST_updateFaceWidget()` | A tic of the status bar (`ST_Ticker`). Emits `:st.face` |
-| `HU_Start()` | A level starts (`P_SpawnPlayer`). Makes the widgets, as before, and emits `:hu.start` |
+| `HU_Start()` | A level starts (`P_SpawnPlayer`). Makes the widgets again, and emits `:hu.start` |
 | `HU_Ticker()` | A tic of a level (`G_Ticker`). Emits `:hu.tic`, then `:hu.check` |
 | `HU_Responder(ev)` | An input event in a level (`G_Responder`). The shifts and the alts are handled in C; a key down emits `:hu.key`, and the function answers what the task Hud set in `hu_eat` |
+| `HU_Init()`, `HU_Drawer()`, `HU_Erase()`, `HU_dequeueChatChar()` | The font, the drawing of the widgets, and the queue of the chat: functions of C in the `:prelude`, which emit nothing |
 | `M_Responder(ev)` | An input event, before the game sees it (`D_ProcessEvents`). The test of the controls, the mouse and the joystick stay in C; the close button emits `:m.quit`; a key emits `:m.key`, and the function answers what the task Menus left in `m_eat` |
 | `M_Ticker()`, `M_Drawer()` | A tic, and a frame (over everything). Emit `:m.tic` and `:m.draw` |
 | `M_StartControlPanel()` | The engine opens the main menu (a key on the title or in a demo, `G_Responder`). Emits `:m.open` |
