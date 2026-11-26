@@ -234,7 +234,7 @@ func wi_init () {
                 var total = 0
                 loop j in 4 {
                     val n = `:number WI_WBS->plyr[(int)a_dbl($i)].frags[(int)a_dbl($j)]`
-                    set frags@(j) = n
+                    set frags@j = n
                     if j == i {
                         set total -= n
                     } else {
@@ -342,11 +342,11 @@ func wi_draw_finished () {
 ;; A counter in percent runs up to `max`, 2 at each tic, with shots.
 task WI_Count (cnt, key, max) {
     loop on :wi.tic {
-        set cnt@(key) = cnt@(key) + 2
+        set cnt@key += 2
         wi_sound_count()
-        until cnt@(key) >= max
+        until cnt@key >= max
     }
-    set cnt@(key) = max
+    set cnt@key = max
     wi_sound(`:number sfx_barexp`)
 }
 
@@ -434,9 +434,9 @@ task WI_Count_All (cnts, key, max, step, sound) {
         var ticking = false
         loop _, p in WI.players {
             val cnt = cnts@(p.i)
-            set cnt@(key) = cnt@(key) + step
-            if cnt@(key) >= p@(max) {
-                set cnt@(key) = p@(max)
+            set cnt@key += step
+            if cnt@key >= p@max {
+                set cnt@key = p@max
             } else {
                 set ticking = true
             }
@@ -621,7 +621,7 @@ task WI_Stats_Deathmatch () {
 ;; Draws the first of the graphics that fits in the screen, on the place
 ;; of the level `n`.
 func wi_draw_place (n, names) {
-    val place = WI_PLACES@(WI.epsd)@(n)
+    val place = WI_PLACES@(WI.epsd)@n
     val ok = loop _, name in names {
         val left = place@0 - patch_left(name)
         val top  = place@1 - patch_top(name)

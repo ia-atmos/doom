@@ -40,6 +40,9 @@ Each has the option recommended by this session.
 
 | # | What | Note |
 |---|------|------|
+| 88 | The indexes by a plain name lose their parentheses (`@(key)` to `@key`): 8 lines, all in `wi.atm`; two counters became `+=`. Twenty-one tests identical, nineteen on the variant | A request of the author for every project, relayed by `atmos` on 2026-11-26 |
+| 86 | Excerpt, idiomatic: a counter of the intermission, `wi.atm:345`, `set cnt@key += 2` | Shown on 2026-11-26 |
+| 87 | Excerpt, bad: `WI_PLACES@(WI.epsd)@n`, `wi.atm:624`. Why: the index by a field of a table needs parentheses, so one chain mixes both forms. Better: a table of the episode kept in a local (the port), or `@` taking a path of fields (the language) | Shown on 2026-11-26 |
 | 80 | Excerpt, idiomatic: the end of the game as a question awaited, `menu.atm:755` | Shown on 2026-11-26, after #74 |
 | 81 | Excerpt, bad: `Ask` writes its `solo` twice, `menu.atm:466`. Why: the pattern of a `solo` is syntax, and cannot take a part on a condition (the close button only for the question to quit). Better: a pattern with a conditional part, or patterns as values (the language) | Shown on 2026-11-26 |
 | 82 | Excerpt, idiomatic: the name of the map chosen by an `ifs` over tables of Atmos, `hu.atm:265` | Shown on 2026-11-26 |

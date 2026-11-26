@@ -99,3 +99,6 @@ no decision needed), **done**, **closed** (settled with no change),
 | 83 | Excerpt, bad: the names of the maps read from C one by one (`hu.atm:249`) | shown |
 | 84 | Excerpt, idiomatic: the keys of the automap as a table (`am.atm:166`) | shown |
 | 85 | Excerpt, bad: a pan of the automap in C (`am.atm:137`) | shown |
+| 86 | Excerpt, idiomatic: `set cnt@key += 2` (`wi.atm:345`) | shown |
+| 87 | Excerpt, bad: `WI_PLACES@(WI.epsd)@n` (`wi.atm:624`) | shown |
+| 88 | `@(name)` to `@name`, in `wi.atm` | done 2026-11-26 |
