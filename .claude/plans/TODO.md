@@ -130,3 +130,7 @@ On 2026-11-20, by the rule "work with no input" of the author:
 
 On 2026-11-22, the author acknowledged the reports ("Ack"): the items of
 section C are read, and the work goes on later (D8, and #33 with him).
+
+On 2026-11-26, the author acknowledged the reports ("ack"): #59 (D8),
+#60, #61 (#33), #62, #63, #64 (D6 done), #65. The plan, D0 to D8, is
+done; nothing is waiting for an answer.
